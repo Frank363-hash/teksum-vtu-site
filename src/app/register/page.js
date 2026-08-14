@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import {
   useRouter,
   useSearchParams,
@@ -11,7 +11,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/context/AuthContext";
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const router =
     useRouter();
 
@@ -185,52 +185,82 @@ export default function RegisterPage() {
     const normalizedPhone =
       phone.replace(/\D/g, "");
 
-    const result =
-      await register({
-        name,
-        email,
-        phone:
-          normalizedPhone,
-        password,
-      });
+    try {
+      const result =
+        await register({
+          name,
+          email,
+          phone:
+            normalizedPhone,
+          password,
+        });
 
-    if (!result.success) {
+      if (!result.success) {
+        setError(
+          result.message ||
+            "Unable to create your account. Please try again."
+        );
+
+        setSubmitting(false);
+
+        return;
+      }
+
+      /*
+       * If the backend requires email verification,
+       * it can return a verification-required flag.
+       */
+
+      const verificationRequired =
+        result.data
+          ?.requiresEmailVerification ||
+        result.data
+          ?.emailVerificationRequired;
+
+      if (
+        verificationRequired
+      ) {
+        router.replace(
+          `/login?registered=true&redirect=${encodeURIComponent(
+            redirectTo
+          )}`
+        );
+
+        return;
+      }
+
+      /*
+       * Registration succeeded.
+       *
+       * Return the user to the page they originally
+       * came from. This is important for the purchase flow.
+       *
+       * Example:
+       *
+       * /services/data
+       *       ↓
+       * /register?redirect=/services/data
+       *       ↓
+       * successful registration
+       *       ↓
+       * /services/data
+       */
+
+      router.replace(
+        redirectTo
+      );
+    } catch (err) {
+      console.error(
+        "Registration error:",
+        err
+      );
+
       setError(
-        result.message ||
-          "Unable to create your account. Please try again."
+        "Unable to create your account. Please try again."
       );
 
       setSubmitting(false);
-
-      return;
     }
-
-    /*
-     * If the backend requires email verification,
-     * it can return a verification-required flag.
-     */
-
-    const verificationRequired =
-      result.data
-        ?.requiresEmailVerification ||
-      result.data
-        ?.emailVerificationRequired;
-
-    if (
-      verificationRequired
-    ) {
-      router.replace(
-        `/login?registered=true&redirect=${encodeURIComponent(
-          redirectTo
-        )}`
-      );
-
-      return;
-    }
-
-    router.replace(
-      redirectTo
-    );
   }
 
   if (
@@ -243,11 +273,13 @@ export default function RegisterPage() {
 
         <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-16">
           <div className="text-center">
+
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-[#dbeafe] border-t-[#10b981] dark:border-[#1e3a6e] dark:border-t-[#34d399]" />
 
             <p className="mt-4 text-sm text-[#64748b] dark:text-[#94a3b8]">
               Checking your session...
             </p>
+
           </div>
         </main>
 
@@ -258,9 +290,11 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0d1526]">
+
       <Navbar />
 
       <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-16 sm:px-6">
+
         <div className="w-full max-w-md">
 
           <div className="mb-8 text-center">
@@ -301,6 +335,7 @@ export default function RegisterPage() {
             >
 
               <div>
+
                 <label
                   htmlFor="register-name"
                   className="mb-1.5 block text-sm font-medium text-[#0f172a] dark:text-[#e8eeff]"
@@ -337,9 +372,11 @@ export default function RegisterPage() {
                     }
                   </p>
                 )}
+
               </div>
 
               <div>
+
                 <label
                   htmlFor="register-email"
                   className="mb-1.5 block text-sm font-medium text-[#0f172a] dark:text-[#e8eeff]"
@@ -376,9 +413,11 @@ export default function RegisterPage() {
                     }
                   </p>
                 )}
+
               </div>
 
               <div>
+
                 <label
                   htmlFor="register-phone"
                   className="mb-1.5 block text-sm font-medium text-[#0f172a] dark:text-[#e8eeff]"
@@ -424,9 +463,11 @@ export default function RegisterPage() {
                     }
                   </p>
                 )}
+
               </div>
 
               <div>
+
                 <label
                   htmlFor="register-password"
                   className="mb-1.5 block text-sm font-medium text-[#0f172a] dark:text-[#e8eeff]"
@@ -491,9 +532,11 @@ export default function RegisterPage() {
                     }
                   </p>
                 )}
+
               </div>
 
               <div>
+
                 <label
                   htmlFor="register-confirm-password"
                   className="mb-1.5 block text-sm font-medium text-[#0f172a] dark:text-[#e8eeff]"
@@ -558,9 +601,11 @@ export default function RegisterPage() {
                     }
                   </p>
                 )}
+
               </div>
 
               <div>
+
                 <div className="flex items-start gap-3">
 
                   <input
@@ -610,6 +655,7 @@ export default function RegisterPage() {
                     }
                   </p>
                 )}
+
               </div>
 
               <button
@@ -619,6 +665,7 @@ export default function RegisterPage() {
                 }
                 className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#10b981] py-3.5 text-sm font-semibold text-white transition hover:bg-[#059669] disabled:cursor-not-allowed disabled:opacity-70"
               >
+
                 {submitting && (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                 )}
@@ -626,12 +673,15 @@ export default function RegisterPage() {
                 {submitting
                   ? "Creating account..."
                   : "Create free account"}
+
               </button>
 
             </form>
 
             <p className="mt-6 text-center text-sm text-[#475569] dark:text-[#7b8ebc]">
+
               Already have an account?{" "}
+
               <Link
                 href={`/login?redirect=${encodeURIComponent(
                   redirectTo
@@ -640,13 +690,49 @@ export default function RegisterPage() {
               >
                 Sign in
               </Link>
+
             </p>
 
           </div>
+
         </div>
+
       </main>
 
       <Footer />
+
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white dark:bg-[#0d1526]">
+
+          <Navbar />
+
+          <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-16">
+
+            <div className="text-center">
+
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-[#dbeafe] border-t-[#10b981] dark:border-[#1e3a6e] dark:border-t-[#34d399]" />
+
+              <p className="mt-4 text-sm text-[#64748b] dark:text-[#94a3b8]">
+                Loading registration...
+              </p>
+
+            </div>
+
+          </main>
+
+          <Footer />
+
+        </div>
+      }
+    >
+      <RegisterPageContent />
+    </Suspense>
   );
 }
