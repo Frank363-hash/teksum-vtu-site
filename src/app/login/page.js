@@ -1,19 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/context/AuthContext";
 
-export default function LoginPage() {
-  const router =
-    useRouter();
+function LoginPageContent() {
+  const router = useRouter();
 
-  const searchParams =
-    useSearchParams();
+  const searchParams = useSearchParams();
 
   const {
     login,
@@ -60,9 +58,7 @@ export default function LoginPage() {
    */
 
   const redirectTo =
-    searchParams.get(
-      "redirect"
-    ) || "/dashboard";
+    searchParams.get("redirect") || "/dashboard";
 
   /*
    * If the user is already signed in,
@@ -105,19 +101,14 @@ export default function LoginPage() {
         "Enter your password.";
     }
 
-    setFieldErrors(
-      errors
-    );
+    setFieldErrors(errors);
 
     return (
-      Object.keys(errors)
-        .length === 0
+      Object.keys(errors).length === 0
     );
   }
 
-  async function handleSubmit(
-    event
-  ) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     setError("");
@@ -128,32 +119,43 @@ export default function LoginPage() {
 
     setSubmitting(true);
 
-    const result =
-      await login({
-        email,
+    try {
+      const result = await login({
+        email: email.trim(),
         password,
       });
 
-    if (!result.success) {
+      if (!result.success) {
+        setError(
+          result.message ||
+            "Unable to sign in. Please try again."
+        );
+
+        setSubmitting(false);
+
+        return;
+      }
+
+      /*
+       * Login succeeded.
+       *
+       * The AuthContext now owns the authenticated state.
+       *
+       * If the user originally came from a purchase page,
+       * redirectTo returns them there so the pending purchase
+       * flow can continue.
+       */
+
+      router.replace(redirectTo);
+    } catch (err) {
+      console.error("Login error:", err);
+
       setError(
-        result.message ||
-          "Unable to sign in. Please try again."
+        "Unable to sign in. Please try again."
       );
 
       setSubmitting(false);
-
-      return;
     }
-
-    /*
-     * Login succeeded.
-     *
-     * The AuthContext now owns the authenticated state.
-     */
-
-    router.replace(
-      redirectTo
-    );
   }
 
   if (
@@ -214,9 +216,7 @@ export default function LoginPage() {
             )}
 
             <form
-              onSubmit={
-                handleSubmit
-              }
+              onSubmit={handleSubmit}
               noValidate
               className="space-y-5"
             >
@@ -239,22 +239,17 @@ export default function LoginPage() {
                       event.target.value
                     );
 
-                    if (
-                      fieldErrors.email
-                    ) {
+                    if (fieldErrors.email) {
                       setFieldErrors(
                         (current) => ({
                           ...current,
-                          email:
-                            "",
+                          email: "",
                         })
                       );
                     }
                   }}
                   placeholder="you@example.com"
-                  disabled={
-                    submitting
-                  }
+                  disabled={submitting}
                   className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:ring-2 dark:bg-[#0d1526] dark:text-[#e8eeff] dark:placeholder:text-[#475569] ${
                     fieldErrors.email
                       ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[#fecaca]"
@@ -264,9 +259,7 @@ export default function LoginPage() {
 
                 {fieldErrors.email && (
                   <p className="mt-1.5 text-xs text-[#dc2626]">
-                    {
-                      fieldErrors.email
-                    }
+                    {fieldErrors.email}
                   </p>
                 )}
               </div>
@@ -297,31 +290,23 @@ export default function LoginPage() {
                         : "password"
                     }
                     autoComplete="current-password"
-                    value={
-                      password
-                    }
+                    value={password}
                     onChange={(event) => {
                       setPassword(
-                        event.target
-                          .value
+                        event.target.value
                       );
 
-                      if (
-                        fieldErrors.password
-                      ) {
+                      if (fieldErrors.password) {
                         setFieldErrors(
                           (current) => ({
                             ...current,
-                            password:
-                              "",
+                            password: "",
                           })
                         );
                       }
                     }}
                     placeholder="••••••••"
-                    disabled={
-                      submitting
-                    }
+                    disabled={submitting}
                     className={`w-full rounded-xl border bg-white px-4 py-3 pr-20 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:ring-2 dark:bg-[#0d1526] dark:text-[#e8eeff] dark:placeholder:text-[#475569] ${
                       fieldErrors.password
                         ? "border-[#ef4444] focus:border-[#ef4444] focus:ring-[#fecaca]"
@@ -333,13 +318,10 @@ export default function LoginPage() {
                     type="button"
                     onClick={() =>
                       setShowPassword(
-                        (value) =>
-                          !value
+                        (value) => !value
                       )
                     }
-                    disabled={
-                      submitting
-                    }
+                    disabled={submitting}
                     className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-xs font-semibold text-[#1e40af] hover:underline dark:text-[#3b60d4]"
                   >
                     {showPassword
@@ -350,18 +332,14 @@ export default function LoginPage() {
 
                 {fieldErrors.password && (
                   <p className="mt-1.5 text-xs text-[#dc2626]">
-                    {
-                      fieldErrors.password
-                    }
+                    {fieldErrors.password}
                   </p>
                 )}
               </div>
 
               <button
                 type="submit"
-                disabled={
-                  submitting
-                }
+                disabled={submitting}
                 className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#1e40af] py-3.5 text-sm font-semibold text-white transition hover:bg-[#1d3a9e] disabled:cursor-not-allowed disabled:opacity-70 dark:bg-[#3b60d4] dark:hover:bg-[#2d50c0]"
               >
                 {submitting && (
@@ -402,5 +380,42 @@ export default function LoginPage() {
 
       <Footer />
     </div>
+  );
+}
+
+/*
+ * IMPORTANT:
+ *
+ * Next.js requires a Suspense boundary around components
+ * that use useSearchParams() when the page is prerendered.
+ *
+ * This fixes the Vercel build error:
+ *
+ * "useSearchParams() should be wrapped in a suspense boundary"
+ */
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white dark:bg-[#0d1526]">
+          <Navbar />
+
+          <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-16">
+            <div className="text-center">
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-[#dbeafe] border-t-[#1e40af] dark:border-[#1e3a6e] dark:border-t-[#3b60d4]" />
+
+              <p className="mt-4 text-sm text-[#64748b] dark:text-[#94a3b8]">
+                Loading sign in...
+              </p>
+            </div>
+          </main>
+
+          <Footer />
+        </div>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
   );
 }
