@@ -1,0 +1,38 @@
+@import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #ffffff;
+  --fg: #0f172a;
+  --fg-muted: #475569;
+  --surface: #f0f4ff;
+  --border: #dbeafe;
+  --brand-blue: #1e40af;
+  --brand-green: #10b981;
+}
+
+.dark {
+  --bg: #0d1526;
+  --fg: #e8eeff;
+  --fg-muted: #7b8ebc;
+  --surface: #152040;
+  --border: #1e3a6e;
+  --brand-blue: #3b60d4;
+  --brand-green: #34d399;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  margin: 0;
+  padding: 0;
+}
