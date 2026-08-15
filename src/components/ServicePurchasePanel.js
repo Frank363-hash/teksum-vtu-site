@@ -61,6 +61,41 @@ const BULK_MIN = 20;
 const BULK_MAX = 100;
 
 /*
+ * Explicit education bulk rules.
+ *
+ * These are frontend UX limits only. The backend/provider must
+ * validate the real quantity limits before submitting a purchase.
+ * NECO Result Token is prepared for bulk ordering, and the NECO
+ * GCE/External registration option is prepared for multiple PINs.
+ */
+const BULK_RULES = {
+  "waec-result": {
+    min: 20,
+    max: 100,
+  },
+  "waec-registration": {
+    min: 1,
+    max: 100,
+  },
+  "neco-result": {
+    min: 20,
+    max: 100,
+  },
+  "neco-registration": {
+    options: {
+      external: {
+        min: 1,
+        max: 100,
+      },
+    },
+  },
+  nabteb: {
+    min: 20,
+    max: 100,
+  },
+};
+
+/*
  * ============================================================
  * HELPERS
  * ============================================================
@@ -333,6 +368,8 @@ function QuantityControl({
 function BulkToggle({
   enabled,
   onChange,
+  title = "Bulk order",
+  helper = "Purchase multiple PINs or tokens together.",
 }) {
   return (
     <button
@@ -342,11 +379,11 @@ function BulkToggle({
     >
       <div>
         <p className="text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
-          Bulk order
+          {title}
         </p>
 
         <p className="mt-1 text-[11px] text-[#64748b] dark:text-[#94a3b8]">
-          Purchase multiple PINs or tokens together.
+          {helper}
         </p>
       </div>
 
@@ -354,7 +391,7 @@ function BulkToggle({
         className={`relative h-6 w-11 rounded-full transition ${
           enabled
             ? "bg-[#1e40af] dark:bg-[#3b60d4]"
-            : "bg-[#cbd5e1] dark:bg-[#475569]"
+            : "bg-[#cbd5e1] dark:bg-[#334155]"
         }`}
       >
         <span
@@ -375,79 +412,37 @@ function BulkToggle({
 
 export default function ServicePurchasePanel({
   service,
-  isAuthenticated = false,
-  accessToken = "",
 }) {
-  /*
-   * ----------------------------------------------------------
-   * SERVICE FLAGS
-   * ----------------------------------------------------------
-   */
-
-  const slug = service?.slug || "";
-
   const isAirtime =
-    service?.formType === "telecom" ||
-    slug === "airtime";
+    service.formType === "telecom" &&
+    service.slug === "airtime";
 
   const isData =
-    service?.formType === "data" ||
-    slug === "data";
+    service.formType === "data";
 
   const isExam =
-    service?.formType === "pin" ||
-    service?.formType === "education" ||
-    [
-      "waec-result",
-      "waec-registration",
-      "neco-internal",
-      "neco-external",
-      "neco-registration-internal",
-      "neco-registration-external",
-      "nbais",
-      "nbais-registration-internal",
-      "nbais-registration-external",
-      "nbais-result",
-      "jamb",
-      "nabteb",
-    ].includes(slug);
-
-  const isJamb =
-    slug === "jamb";
+    service.formType === "exam";
 
   const isInternet =
-    service?.formType === "internet" ||
-    slug === "internet";
+    service.formType === "internet";
 
   const isElectricity =
-    service?.formType === "electricity" ||
-    slug === "electricity";
+    service.formType === "electricity";
 
   const isCable =
-    service?.formType === "cable" ||
-    slug === "cable";
+    service.formType === "cable";
 
   const hasOptions =
-    Array.isArray(service?.options) &&
+    Array.isArray(service.options) &&
     service.options.length > 0;
 
   /*
-   * ----------------------------------------------------------
-   * FORM STATE
-   * ----------------------------------------------------------
+   * ==========================================================
+   * STATE
+   * ==========================================================
    */
 
-  const [network, setNetwork] = useState(
-    service?.defaultNetwork || ""
-  );
-
-  const [phone, setPhone] = useState("");
-
-  const [amount, setAmount] = useState(
-    ""
-  );
-
-  const [customAmount, setCustomAmount] =
+  const [network, setNetwork] =
     useState("");
 
   const [dataType, setDataType] =
@@ -459,14 +454,27 @@ export default function ServicePurchasePanel({
   const [provider, setProvider] =
     useState("");
 
+  const [option, setOption] =
+    useState("");
+
+  const [phone, setPhone] =
+    useState("");
+
+  const [amount, setAmount] =
+    useState("");
+
+  const [customAmount, setCustomAmount] =
+    useState("");
+
   const [account, setAccount] =
     useState("");
 
   const [meterType, setMeterType] =
     useState("");
 
-  const [option, setOption] =
-    useState("");
+  /*
+   * Education state
+   */
 
   const [selectedExamOption, setSelectedExamOption] =
     useState("");
@@ -478,636 +486,619 @@ export default function ServicePurchasePanel({
     useState(false);
 
   /*
-   * ----------------------------------------------------------
-   * PURCHASE STATE
-   * ----------------------------------------------------------
-   *
-   * idle
-   * review
-   * processing
-   * success
-   * error
-   * pending
+   * Purchase review
    */
 
   const [showReview, setShowReview] =
     useState(false);
 
+  /*
+   * Purchase request state
+   */
+
   const [purchaseStatus, setPurchaseStatus] =
     useState("idle");
-
-  const [transactionReference, setTransactionReference] =
-    useState("");
 
   const [purchaseMessage, setPurchaseMessage] =
     useState("");
 
-  const [purchaseResponse, setPurchaseResponse] =
-    useState(null);
+  const [transactionReference, setTransactionReference] =
+    useState("");
+
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
 
   /*
-   * ----------------------------------------------------------
-   * DATA TYPE OPTIONS
-   * ----------------------------------------------------------
+   * ==========================================================
+   * DATA TYPES
+   * ==========================================================
    */
 
-  const availableDataTypes = useMemo(() => {
-    if (!network) {
-      return [];
-    }
+  const availableDataTypes =
+    useMemo(() => {
+      if (
+        !network ||
+        !service.dataTypesByNetwork
+      ) {
+        return [];
+      }
 
-    if (
-      Array.isArray(service?.dataTypes) &&
-      service.dataTypes.length > 0
-    ) {
-      return service.dataTypes;
-    }
-
-    return [
-      {
-        id: "regular",
-        label: "Regular Data",
-        description:
-          "Standard internet data plans.",
-      },
-      {
-        id: "sme",
-        label: "SME Data",
-        description:
-          "SME-focused data plans where supported.",
-      },
-      {
-        id: "gifting",
-        label: "Gifting Data",
-        description:
-          "Send a data plan to another number.",
-      },
-      {
-        id: "corporate-gifting",
-        label: "Corporate Gifting",
-        description:
-          "Corporate gifting plans where supported.",
-      },
-      {
-        id: "data-share",
-        label: "Data Share",
-        description:
-          "Data sharing plans where supported.",
-      },
-      {
-        id: "awoof",
-        label: "Awoof Data",
-        description:
-          "Promotional data plans where supported.",
-      },
-      {
-        id: "cg-lite-sme2",
-        label: "CG LITE / SME2",
-        description:
-          "Provider-specific plans where supported.",
-      },
-    ];
-  }, [network, service]);
+      return (
+        service.dataTypesByNetwork[network] ||
+        []
+      );
+    }, [
+      network,
+      service.dataTypesByNetwork,
+    ]);
 
   /*
-   * ----------------------------------------------------------
+   * ==========================================================
+   * SELECTED PROVIDER
+   * ==========================================================
+   */
+
+  const selectedProvider =
+    useMemo(
+      () =>
+        service.providers?.find(
+          (item) =>
+            item.serviceID === provider
+        ),
+      [
+        provider,
+        service.providers,
+      ]
+    );
+
+  /*
+   * ==========================================================
+   * SELECTED OPTION
+   * ==========================================================
+   */
+
+  const selectedOption =
+    useMemo(
+      () =>
+        service.options?.find(
+          (item) =>
+            item.id === option
+        ),
+      [
+        option,
+        service.options,
+      ]
+    );
+
+  /*
+   * ==========================================================
    * SELECTED DATA TYPE
-   * ----------------------------------------------------------
+   * ==========================================================
    */
 
   const selectedDataType =
-    availableDataTypes.find(
-      (item) => item.id === dataType
-    ) || null;
+    useMemo(
+      () =>
+        availableDataTypes.find(
+          (item) =>
+            item.id === dataType
+        ),
+      [
+        availableDataTypes,
+        dataType,
+      ]
+    );
 
   /*
-   * ----------------------------------------------------------
-   * DATA PLAN PREVIEW
-   * ----------------------------------------------------------
+   * ==========================================================
+   * SELECTED DATA PLAN
+   * ==========================================================
    */
 
   const selectedPlanObject =
-    DATA_PLAN_PREVIEW.find(
-      (plan) => plan.id === selectedPlan
-    ) || null;
+    useMemo(
+      () =>
+        DATA_PLAN_PREVIEW.find(
+          (item) =>
+            item.id === selectedPlan
+        ),
+      [selectedPlan]
+    );
 
   /*
-   * ----------------------------------------------------------
-   * EDUCATION OPTION
-   * ----------------------------------------------------------
+   * ==========================================================
+   * SELECTED EXAM OPTION
+   * ==========================================================
    */
 
   const selectedExamProduct =
-    service?.options?.find(
-      (item) =>
-        item.id === selectedExamOption
-    ) || null;
+    useMemo(
+      () =>
+        service.options?.find(
+          (item) =>
+            item.id ===
+            selectedExamOption
+        ),
+      [
+        service.options,
+        selectedExamOption,
+      ]
+    );
 
   /*
-   * ----------------------------------------------------------
-   * EDUCATION PRICE
-   * ----------------------------------------------------------
-   *
-   * Never pretend that an unknown provider price is real.
-   * A backend response should eventually provide this.
+   * ==========================================================
+   * EDUCATION RULES
+   * ==========================================================
    */
 
-  const educationUnitPrice = useMemo(() => {
-    if (!selectedExamProduct) {
-      return null;
+  const currentBulkRule =
+    BULK_RULES[service.slug] || null;
+
+  const selectedEducationOptionKey =
+    String(
+      selectedExamProduct?.id ||
+        selectedExamProduct?.code ||
+        selectedExamProduct?.variationCode ||
+        ""
+    ).toLowerCase();
+
+  const isNecoExternalRegistration =
+    service.slug ===
+      "neco-registration" &&
+    (
+      selectedEducationOptionKey.includes(
+        "external"
+      ) ||
+      selectedEducationOptionKey.includes(
+        "gce"
+      )
+    );
+
+  const isBulkEligible =
+    Boolean(currentBulkRule) &&
+    (
+      service.slug !==
+        "neco-registration" ||
+      isNecoExternalRegistration
+    );
+
+  const educationMin =
+    bulkMode &&
+    isBulkEligible
+      ? currentBulkRule?.options
+          ?.external?.min ||
+        currentBulkRule?.min ||
+        BULK_MIN
+      : EDUCATION_DEFAULT_MIN;
+
+  const educationMax =
+    bulkMode &&
+    isBulkEligible
+      ? currentBulkRule?.options
+          ?.external?.max ||
+        currentBulkRule?.max ||
+        BULK_MAX
+      : EDUCATION_DEFAULT_MAX;
+
+  /*
+   * Keep quantity inside the active range.
+   */
+
+  function clampEducationQuantity(
+    value,
+    min = educationMin,
+    max = educationMax
+  ) {
+    const numeric =
+      Number(value);
+
+    if (!Number.isFinite(numeric)) {
+      return min;
     }
 
-    if (
-      selectedExamProduct.price !==
-      undefined &&
-      selectedExamProduct.price !== null
-    ) {
-      const numeric = Number(
-        String(selectedExamProduct.price)
-          .replace(/[₦,]/g, "")
-      );
+    return Math.min(
+      max,
+      Math.max(min, numeric)
+    );
+  }
 
-      return Number.isNaN(numeric)
-        ? null
-        : numeric;
-    }
+  /*
+   * ==========================================================
+   * EDUCATION PRICE
+   * ==========================================================
+   */
 
-    return null;
-  }, [selectedExamProduct]);
+  const educationUnitPrice =
+    selectedExamProduct?.unitPrice ??
+    selectedExamProduct?.price ??
+    selectedExamProduct?.variationAmount ??
+    null;
+
+  const parsedEducationUnitPrice =
+    educationUnitPrice !== null &&
+    educationUnitPrice !== undefined &&
+    educationUnitPrice !== ""
+      ? Number(
+          String(
+            educationUnitPrice
+          ).replace(/[^\d.]/g, "")
+        )
+      : null;
+
+  const validEducationPrice =
+    Number.isFinite(
+      parsedEducationUnitPrice
+    )
+      ? parsedEducationUnitPrice
+      : null;
 
   const educationTotal =
-    educationUnitPrice !== null
-      ? educationUnitPrice *
+    validEducationPrice !== null
+      ? validEducationPrice *
         educationQuantity
       : null;
 
   /*
-   * ----------------------------------------------------------
-   * EDUCATION LIMITS
-   * ----------------------------------------------------------
-   */
-
-  const educationMin =
-    bulkMode
-      ? BULK_MIN
-      : Number(
-          selectedExamProduct?.minQuantity ||
-            EDUCATION_DEFAULT_MIN
-        );
-
-  const educationMax =
-    bulkMode
-      ? BULK_MAX
-      : Number(
-          selectedExamProduct?.maxQuantity ||
-            EDUCATION_DEFAULT_MAX
-        );
-
-  /*
-   * ----------------------------------------------------------
-   * BULK ELIGIBILITY
-   * ----------------------------------------------------------
-   */
-
-  const isBulkEligible =
-    isExam &&
-    Boolean(
-      selectedExamProduct ||
-        service?.bulkEligible
-    );
-
-  /*
-   * ----------------------------------------------------------
-   * PROVIDERS
-   * ----------------------------------------------------------
-   */
-
-  const selectedProvider =
-    service?.providers?.find(
-      (item) =>
-        item.serviceID === provider
-    ) || null;
-
-  const accountLabel =
-    selectedProvider?.accountLabel ||
-    service?.accountLabel ||
-    "Account details";
-
-  const accountPlaceholder =
-    selectedProvider?.accountPlaceholder ||
-    service?.accountPlaceholder ||
-    "Enter account details";
-
-  /*
-   * ----------------------------------------------------------
-   * SELECTED AMOUNT
-   * ----------------------------------------------------------
+   * ==========================================================
+   * AMOUNT
+   * ==========================================================
    */
 
   const selectedAmount =
-    customAmount ||
-    amount;
+    customAmount || amount;
 
   /*
-   * ----------------------------------------------------------
-   * INPUT CLASS
-   * ----------------------------------------------------------
+   * ==========================================================
+   * NETWORK CHANGE
+   * ==========================================================
    */
 
-  const inputClass =
-    "w-full rounded-xl border border-[#cbd5e1] bg-white px-4 py-3 text-sm font-medium text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#1e40af] focus:ring-2 focus:ring-[#dbeafe] dark:border-[#475569] dark:bg-[#152040] dark:text-[#e8eeff] dark:placeholder:text-[#64748b] dark:focus:border-[#3b60d4] dark:focus:ring-[#1e3a6e]";
-
-  /*
-   * ----------------------------------------------------------
-   * CHOICE CLASS
-   * ----------------------------------------------------------
-   */
-
-  function choiceClass(
-    selected,
-    disabled = false
+  function handleNetworkChange(
+    value
   ) {
-    return `
-      cursor-pointer rounded-xl border p-3 text-left transition-all
-      ${
-        disabled
-          ? "cursor-not-allowed opacity-60"
-          : ""
-      }
-      ${
-        selected
-          ? "border-[#1e40af] bg-[#f0f4ff] shadow-sm dark:border-[#3b60d4] dark:bg-[#101a2d]"
-          : "border-[#dbeafe] bg-white hover:border-[#1e40af] dark:border-[#1e3a6e] dark:bg-[#152040]"
-      }
-    `;
-  }
-
-  /*
-   * ----------------------------------------------------------
-   * HANDLERS
-   * ----------------------------------------------------------
-   */
-
-  function handleNetworkChange(value) {
     setNetwork(value);
 
-    setDataType("");
-    setSelectedPlan("");
-
-    if (isAirtime) {
-      setAmount("");
-      setCustomAmount("");
+    if (isData) {
+      setDataType("");
+      setSelectedPlan("");
     }
 
-    setPurchaseStatus("idle");
-    setPurchaseMessage("");
+    setPhone("");
   }
 
-  function handlePhoneChange(event) {
+  /*
+   * ==========================================================
+   * DATA TYPE CHANGE
+   * ==========================================================
+   */
+
+  function handleDataTypeChange(
+    value
+  ) {
+    setDataType(value);
+    setSelectedPlan("");
+  }
+
+  /*
+   * ==========================================================
+   * PHONE
+   * ==========================================================
+   */
+
+  function handlePhoneChange(
+    event
+  ) {
     setPhone(
-      normalizePhone(event.target.value)
+      normalizePhone(
+        event.target.value
+      )
     );
   }
+
+  /*
+   * ==========================================================
+   * CUSTOM AIRTIME
+   * ==========================================================
+   */
 
   function handleCustomAmountChange(
     event
   ) {
-    const value = String(
-      event.target.value || ""
-    ).replace(/\D/g, "");
+    const value =
+      event.target.value.replace(
+        /\D/g,
+        ""
+      );
 
     setCustomAmount(value);
     setAmount("");
   }
 
-  function handleDataTypeChange(value) {
-    setDataType(value);
-    setSelectedPlan("");
-  }
-
-  function handleBulkChange(enabled) {
-    setBulkMode(enabled);
-
-    setEducationQuantity(
-      enabled
-        ? BULK_MIN
-        : 1
-    );
-  }
-
-  function handleEducationOptionChange(
-    value
-  ) {
-    setSelectedExamOption(value);
-
-    setEducationQuantity(
-      bulkMode
-        ? BULK_MIN
-        : 1
-    );
-  }
-
   /*
-   * ----------------------------------------------------------
-   * VALIDATION
-   * ----------------------------------------------------------
+   * ==========================================================
+   * EDUCATION OPTION CHANGE
+   * ==========================================================
    */
 
-  const canContinue = useMemo(() => {
-    if (!service) {
-      return false;
-    }
+  function handleExamOptionChange(
+    item
+  ) {
+    setSelectedExamOption(
+      item.id
+    );
 
-    if (isAirtime) {
-      return (
-        Boolean(network) &&
-        phone.length === 11 &&
-        Boolean(selectedAmount)
-      );
-    }
-
-    if (isData) {
-      return (
-        Boolean(network) &&
-        Boolean(dataType) &&
-        Boolean(selectedPlan) &&
-        phone.length === 11
-      );
-    }
-
-    if (isExam) {
-      if (!selectedExamProduct) {
-        return false;
-      }
-
-      if (
-        educationQuantity <
-          educationMin ||
-        educationQuantity >
-          educationMax
-      ) {
-        return false;
-      }
-
-      return true;
-    }
-
-    if (isInternet) {
-      return (
-        Boolean(provider) &&
-        Boolean(account)
-      );
-    }
-
-    if (isElectricity) {
-      return (
-        Boolean(provider) &&
-        Boolean(meterType) &&
-        Boolean(account) &&
-        Boolean(amount)
-      );
-    }
-
-    if (isCable) {
-      return (
-        Boolean(provider) &&
-        Boolean(account)
-      );
-    }
-
-    if (hasOptions) {
-      return Boolean(option);
-    }
-
-    return true;
-  }, [
-    service,
-    isAirtime,
-    isData,
-    isExam,
-    isInternet,
-    isElectricity,
-    isCable,
-    hasOptions,
-    network,
-    phone,
-    selectedAmount,
-    dataType,
-    selectedPlan,
-    selectedExamProduct,
-    educationQuantity,
-    educationMin,
-    educationMax,
-    provider,
-    account,
-    meterType,
-    amount,
-    option,
-  ]);
+    setEducationQuantity(1);
+    setBulkMode(false);
+  }
 
   /*
-   * ----------------------------------------------------------
-   * BUILD BACKEND PURCHASE PAYLOAD
-   * ----------------------------------------------------------
-   *
-   * The backend remains responsible for provider selection,
-   * provider failover, pricing, variation codes and the actual
-   * transaction.
+   * ==========================================================
+   * BULK CHANGE
+   * ==========================================================
+   */
+
+  function handleBulkChange(
+    enabled
+  ) {
+    if (
+      enabled &&
+      !isBulkEligible
+    ) {
+      setBulkMode(false);
+      setEducationQuantity(1);
+      return;
+    }
+
+    setBulkMode(enabled);
+
+    if (enabled) {
+      const rule =
+        currentBulkRule;
+
+      const min =
+        rule?.options?.external?.min ||
+        rule?.min ||
+        BULK_MIN;
+
+      setEducationQuantity(
+        min
+      );
+    } else {
+      setEducationQuantity(1);
+    }
+  }
+
+  /*
+   * ==========================================================
+   * QUANTITY CHANGE
+   * ==========================================================
+   */
+
+  function handleEducationQuantityChange(
+    value
+  ) {
+    setEducationQuantity(
+      clampEducationQuantity(
+        value
+      )
+    );
+  }
+
+  /*
+   * ==========================================================
+   * FORM VALIDATION
+   * ==========================================================
+   */
+
+  const examCanContinue =
+    isExam &&
+    Boolean(
+      selectedExamOption &&
+        selectedExamProduct?.status ===
+          "available"
+    );
+
+  const canContinue =
+    isAirtime
+      ? Boolean(
+          network &&
+            phone.length === 11 &&
+            selectedAmount
+        )
+      : isData
+        ? Boolean(
+            network &&
+              dataType &&
+              selectedPlan &&
+              phone.length === 11
+          )
+        : isExam
+          ? examCanContinue
+          : isInternet
+            ? Boolean(
+                provider &&
+                  account
+              )
+            : isElectricity
+              ? Boolean(
+                  provider &&
+                    meterType &&
+                    account &&
+                    amount
+                )
+              : isCable
+                ? Boolean(
+                    provider &&
+                      account
+                  )
+                : hasOptions
+                  ? Boolean(
+                      selectedOption?.status ===
+                        "available"
+                    )
+                  : true;
+
+  /*
+   * ==========================================================
+   * ACCOUNT LABELS
+   * ==========================================================
+   */
+
+  const accountLabel =
+    isInternet
+      ? selectedProvider?.accountLabel ||
+        "Account / Phone Number"
+      : service.accountLabel;
+
+  const accountPlaceholder =
+    isInternet
+      ? selectedProvider?.accountPlaceholder ||
+        "Enter your details"
+      : service.accountPlaceholder;
+
+  /*
+   * ==========================================================
+   * PURCHASE PAYLOAD
+   * ==========================================================
    */
 
   function buildPurchasePayload() {
     const payload = {
-      serviceSlug: slug,
+      serviceSlug:
+        service.slug,
       serviceId:
-        service?.serviceID ||
-        service?.serviceId ||
-        service?.id ||
-        slug,
+        service.id,
+      network:
+        network || undefined,
+      phone:
+        phone || undefined,
+      amount:
+        selectedAmount || undefined,
+      provider:
+        provider || undefined,
+      account:
+        account || undefined,
+      meterType:
+        meterType || undefined,
+      option:
+        option || undefined,
+      examOption:
+        selectedExamOption ||
+        undefined,
+      quantity:
+        isExam
+          ? educationQuantity
+          : 1,
+      bulk:
+        isExam
+          ? bulkMode
+          : false,
+      dataType:
+        dataType || undefined,
+      dataTypeId:
+        selectedDataType?.id ||
+        undefined,
+      dataTypeLabel:
+        selectedDataType?.label ||
+        undefined,
+      plan:
+        selectedPlan ||
+        undefined,
+      planId:
+        selectedPlan ||
+        undefined,
+      planName:
+        selectedPlanObject?.name ||
+        undefined,
+      planValidity:
+        selectedPlanObject?.validity ||
+        undefined,
     };
 
-    if (isAirtime) {
-      return {
-        ...payload,
-        serviceType: "airtime",
-        network,
-        phone,
-        amount: Number(
-          selectedAmount
-        ),
-      };
-    }
-
-    if (isData) {
-      return {
-        ...payload,
-        serviceType: "data",
-        network,
-        phone,
-        dataType,
-        planId: selectedPlan,
-        plan:
-          selectedPlanObject
-            ? {
-                id: selectedPlanObject.id,
-                name: selectedPlanObject.name,
-                validity:
-                  selectedPlanObject.validity,
-                price:
-                  selectedPlanObject.price,
-              }
-            : null,
-      };
-    }
-
-    if (isExam) {
-      return {
-        ...payload,
-        serviceType: "education",
-        examBody:
-          service?.title ||
-          service?.name ||
-          slug,
-        optionId:
-          selectedExamProduct?.id ||
-          selectedExamOption,
-        variationCode:
-          selectedExamProduct?.variationCode ||
-          selectedExamProduct?.variation_code ||
-          null,
-        quantity:
-          educationQuantity,
-        bulk:
-          bulkMode,
-      };
-    }
-
-    if (isInternet) {
-      return {
-        ...payload,
-        serviceType: "internet",
-        provider,
-        account,
-      };
-    }
-
-    if (isElectricity) {
-      return {
-        ...payload,
-        serviceType: "electricity",
-        provider,
-        meterType,
-        account,
-        amount: Number(amount),
-      };
-    }
-
-    if (isCable) {
-      return {
-        ...payload,
-        serviceType: "cable",
-        provider,
-        account,
-        option,
-      };
-    }
-
-    return {
-      ...payload,
-      serviceType:
-        service?.formType ||
-        "service",
-      option,
-    };
+    return Object.fromEntries(
+      Object.entries(payload).filter(
+        ([, value]) =>
+          value !== undefined &&
+          value !== ""
+      )
+    );
   }
 
   /*
-   * ----------------------------------------------------------
+   * ==========================================================
    * REVIEW
-   * ----------------------------------------------------------
+   * ==========================================================
    */
 
   function openReview() {
-    if (!canContinue) {
-      return;
+    if (
+      canContinue &&
+      !isSubmitting
+    ) {
+      setPurchaseStatus(
+        "idle"
+      );
+      setPurchaseMessage("");
+      setShowReview(true);
     }
-
-    setPurchaseMessage("");
-    setPurchaseStatus("idle");
-    setShowReview(true);
   }
 
   function closeReview() {
-    if (
-      purchaseStatus ===
-      "processing"
-    ) {
-      return;
+    if (!isSubmitting) {
+      setShowReview(false);
     }
-
-    setShowReview(false);
   }
 
   function editPurchase() {
+    setShowReview(false);
+
+    setTimeout(() => {
+      let targetId =
+        "airtime-recipient-phone";
+
+      if (isData) {
+        targetId =
+          "data-recipient-phone";
+      }
+
+      if (isExam) {
+        targetId =
+          "education-options";
+      }
+
+      document
+        .getElementById(
+          targetId
+        )
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+    }, 100);
+  }
+
+  /*
+   * ==========================================================
+   * PURCHASE SUBMISSION
+   * ==========================================================
+   */
+
+  async function submitPurchase() {
     if (
-      purchaseStatus ===
-      "processing"
+      !canContinue ||
+      isSubmitting
     ) {
       return;
     }
 
-    setShowReview(false);
-    setPurchaseStatus("idle");
-    setPurchaseMessage("");
-  }
-
-  /*
-   * ----------------------------------------------------------
-   * ACTUAL PURCHASE REQUEST
-   * ----------------------------------------------------------
-   *
-   * IMPORTANT:
-   * This is the real frontend-to-backend purchase path.
-   *
-   * No fake success response is generated here.
-   */
-
-  async function startPurchase() {
-    if (!canContinue) {
-      return;
-    }
-
-    /*
-     * Authentication is required before a purchase.
-     *
-     * If the user is not authenticated, send them to login
-     * instead of pretending the transaction succeeded.
-     */
-    if (!isAuthenticated) {
-      const returnPath =
-        typeof window !== "undefined"
-          ? `${window.location.pathname}${window.location.search}`
-          : `/services/${slug}`;
-
-      window.location.href =
-        `/login?redirect=${encodeURIComponent(
-          returnPath
-        )}`;
-
-      return;
-    }
-
+    setIsSubmitting(true);
     setPurchaseStatus(
-      "processing"
+      "submitting"
     );
-
     setPurchaseMessage("");
-    setPurchaseResponse(null);
     setTransactionReference("");
 
     try {
-      const payload =
-        buildPurchasePayload();
-
       const response =
         await fetch(
           `${API_BASE_URL}/api/services/purchase`,
@@ -1116,178 +1107,172 @@ export default function ServicePurchasePanel({
             headers: {
               "Content-Type":
                 "application/json",
-              ...(accessToken
-                ? {
-                    Authorization: `Bearer ${accessToken}`,
-                  }
-                : {}),
             },
+            credentials:
+              "include",
             body: JSON.stringify(
-              payload
+              buildPurchasePayload()
             ),
           }
         );
 
-      let data = null;
+      const contentType =
+        response.headers.get(
+          "content-type"
+        ) || "";
 
-      try {
-        data =
-          await response.json();
-      } catch {
-        data = null;
-      }
+      const data =
+        contentType.includes(
+          "application/json"
+        )
+          ? await response.json()
+          : await response.text();
 
       if (!response.ok) {
-        const message =
+        throw new Error(
           extractErrorMessage(
             data,
-            "We couldn't complete the purchase."
-          );
-
-        setPurchaseResponse(data);
-        setPurchaseMessage(message);
-        setPurchaseStatus("error");
-        setShowReview(false);
-
-        return;
+            "The purchase request could not be completed."
+          )
+        );
       }
 
-      /*
-       * The backend may return different status fields
-       * depending on the provider response.
-       */
-      const backendStatus = String(
-        data?.status ||
-          data?.transaction?.status ||
-          data?.data?.status ||
-          ""
-      ).toLowerCase();
+      const status =
+        String(
+          data?.status ||
+            data?.transaction?.status ||
+            data?.data?.status ||
+            ""
+        ).toLowerCase();
 
       const reference =
         data?.reference ||
         data?.transactionReference ||
         data?.transaction?.reference ||
-        data?.transaction?.transactionReference ||
         data?.data?.reference ||
         data?.data?.transactionReference ||
         "";
 
       setTransactionReference(
-        reference || "Processing"
+        reference
       );
 
-      setPurchaseResponse(data);
+      setPurchaseMessage(
+        data?.message ||
+          "The purchase request was received successfully."
+      );
 
-      /*
-       * Explicit failure returned with HTTP 200.
-       */
       if (
         [
-          "failed",
-          "failure",
-          "error",
-          "cancelled",
-          "canceled",
-          "reversed",
-        ].includes(
-          backendStatus
-        )
+          "success",
+          "successful",
+          "completed",
+          "complete",
+          "delivered",
+        ].includes(status) ||
+        data?.success === true
       ) {
-        setPurchaseMessage(
-          extractErrorMessage(
-            data,
-            "The provider could not complete this transaction."
-          )
+        setPurchaseStatus(
+          "success"
         );
-
-        setPurchaseStatus("error");
-        setShowReview(false);
-
-        return;
-      }
-
-      /*
-       * Explicit pending states.
-       */
-      if (
+      } else if (
         [
           "pending",
           "processing",
-          "queued",
+          "in-progress",
           "initiated",
-        ].includes(
-          backendStatus
-        )
+        ].includes(status)
       ) {
-        setPurchaseMessage(
-          extractErrorMessage(
-            data,
-            "Your transaction has been received and is still being processed."
-          )
+        setPurchaseStatus(
+          "pending"
         );
-
-        setPurchaseStatus("pending");
-        setShowReview(false);
-
-        return;
+      } else {
+        setPurchaseStatus(
+          "success"
+        );
       }
 
-      /*
-       * A successful HTTP response without an explicit
-       * failure/pending state is treated as successful.
-       */
-      setPurchaseStatus("success");
       setShowReview(false);
     } catch (error) {
-      setPurchaseMessage(
-        error?.message ||
-          "Unable to connect to the TEKSUM backend. Please try again."
+      setPurchaseStatus(
+        "error"
       );
 
-      setPurchaseStatus("error");
+      setPurchaseMessage(
+        error?.message ||
+          "Something went wrong while processing your purchase."
+      );
+
       setShowReview(false);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   /*
-   * ----------------------------------------------------------
-   * RETRY
-   * ----------------------------------------------------------
+   * ==========================================================
+   * RETRY / FINISH
+   * ==========================================================
    */
 
   function retryPurchase() {
-    setPurchaseStatus("idle");
-    setPurchaseMessage("");
-    setPurchaseResponse(null);
-    setShowReview(true);
-  }
+    setPurchaseStatus(
+      "idle"
+    );
 
-  function finishPurchase() {
-    setPurchaseStatus("idle");
-    setPurchaseMessage("");
-    setPurchaseResponse(null);
-    setTransactionReference("");
-    setShowReview(false);
+    setPurchaseMessage(
+      ""
+    );
+
+    setTransactionReference(
+      ""
+    );
+
+    setTimeout(() => {
+      setShowReview(true);
+    }, 50);
   }
 
   function editFailedPurchase() {
-    setPurchaseStatus("idle");
-    setPurchaseMessage("");
-    setPurchaseResponse(null);
+    setPurchaseStatus(
+      "idle"
+    );
+
+    setPurchaseMessage(
+      ""
+    );
+
+    setTransactionReference(
+      ""
+    );
+
+    setTimeout(() => {
+      editPurchase();
+    }, 50);
+  }
+
+  function finishPurchase() {
+    setPurchaseStatus(
+      "idle"
+    );
+
+    setPurchaseMessage(
+      ""
+    );
+
+    setTransactionReference(
+      ""
+    );
   }
 
   /*
-   * ==========================================================
+   * ============================================================
    * RENDER
-   * ==========================================================
+   * ============================================================
    */
 
   return (
     <>
-      {/* ======================================================
-          PURCHASE PANEL
-      ======================================================= */}
-
       <div className="rounded-2xl border border-[#dbeafe] bg-white p-6 shadow-md dark:border-[#1e3a6e] dark:bg-[#152040] lg:sticky lg:top-24 lg:self-start">
 
         <h2 className="text-lg font-bold text-[#0f172a] dark:text-[#e8eeff]">
@@ -1305,8 +1290,10 @@ export default function ServicePurchasePanel({
               NETWORK
           =================================================== */}
 
-          {(isAirtime || isData) && (
+          {(isAirtime ||
+            isData) && (
             <div>
+
               <SectionLabel
                 eyebrow="Step 1"
                 title="Choose network"
@@ -1331,6 +1318,7 @@ export default function ServicePurchasePanel({
                   )
                 )}
               </div>
+
             </div>
           )}
 
@@ -1341,6 +1329,7 @@ export default function ServicePurchasePanel({
           {isAirtime && (
             <>
               <div>
+
                 <SectionLabel
                   eyebrow="Step 2"
                   title="Recipient phone number"
@@ -1357,22 +1346,22 @@ export default function ServicePurchasePanel({
                   inputMode="numeric"
                   maxLength={11}
                   placeholder="08012345678"
-                  className={
-                    inputClass
-                  }
+                  className="w-full rounded-xl border border-[#dbeafe] bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#1e40af] focus:ring-2 focus:ring-[#1e40af]/15 dark:border-[#1e3a6e] dark:bg-[#0d1526] dark:text-[#e8eeff]"
                 />
 
                 {phone.length > 0 &&
                   phone.length !==
                     11 && (
                     <p className="mt-2 text-xs font-medium text-[#dc2626]">
-                      Enter an 11-digit
-                      Nigerian phone number.
+                      Enter an 11-digit Nigerian
+                      phone number.
                     </p>
                   )}
+
               </div>
 
               <div>
+
                 <SectionLabel
                   eyebrow="Step 3"
                   title="Choose amount"
@@ -1422,11 +1411,10 @@ export default function ServicePurchasePanel({
                     type="text"
                     inputMode="numeric"
                     placeholder="Or enter a custom amount"
-                    className={
-                      inputClass
-                    }
+                    className="w-full rounded-xl border border-[#dbeafe] bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#1e40af] focus:ring-2 focus:ring-[#1e40af]/15 dark:border-[#1e3a6e] dark:bg-[#0d1526] dark:text-[#e8eeff]"
                   />
                 </div>
+
               </div>
             </>
           )}
@@ -1438,6 +1426,7 @@ export default function ServicePurchasePanel({
           {isData && (
             <>
               <div>
+
                 <SectionLabel
                   eyebrow="Step 2"
                   title="Choose data type"
@@ -1451,23 +1440,24 @@ export default function ServicePurchasePanel({
                 {!network ? (
                   <div className="rounded-2xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-5 text-center dark:border-[#334155] dark:bg-[#0d1526]">
                     <p className="text-sm font-semibold text-[#475569] dark:text-[#cbd5e1]">
-                      Select a network to
-                      continue
+                      Select a network to continue
                     </p>
 
                     <p className="mt-1 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                      Available data types will
-                      appear based on the network
-                      you choose.
+                      Available data types will appear
+                      based on the network you choose.
                     </p>
                   </div>
                 ) : availableDataTypes.length >
                   0 ? (
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  <div
+                    key={`data-types-${network}`}
+                    className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"
+                  >
                     {availableDataTypes.map(
                       (item) => (
                         <DataTypeCard
-                          key={item.id}
+                          key={`${network}-${item.id}`}
                           item={item}
                           selected={
                             dataType ===
@@ -1493,13 +1483,16 @@ export default function ServicePurchasePanel({
                     </p>
                   </div>
                 )}
+
               </div>
 
               {network &&
                 dataType && (
                   <div>
+
                     <div className="mb-3">
                       <div className="flex items-center justify-between gap-3">
+
                         <div>
                           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#10b981] dark:text-[#34d399]">
                             Step 3
@@ -1515,6 +1508,7 @@ export default function ServicePurchasePanel({
                             ? "Plan selected"
                             : "Select one"}
                         </span>
+
                       </div>
 
                       <p className="mt-1 text-[11px] text-[#64748b] dark:text-[#94a3b8]">
@@ -1529,12 +1523,8 @@ export default function ServicePurchasePanel({
                       {DATA_PLAN_PREVIEW.map(
                         (plan) => (
                           <DataPlanCard
-                            key={
-                              plan.id
-                            }
-                            plan={
-                              plan
-                            }
+                            key={plan.id}
+                            plan={plan}
                             selected={
                               selectedPlan ===
                               plan.id
@@ -1550,15 +1540,17 @@ export default function ServicePurchasePanel({
                     </div>
 
                     <p className="mt-3 text-[10px] leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                      Preview plans are temporary
-                      UI data. Live plans and prices
-                      should eventually come from the
-                      TEKSUM backend.
+                      Preview plans are temporary UI
+                      data. Live plans and prices will
+                      eventually come from the TEKSUM
+                      backend.
                     </p>
+
                   </div>
                 )}
 
               <div>
+
                 <SectionLabel
                   eyebrow="Step 4"
                   title="Recipient phone number"
@@ -1575,19 +1567,18 @@ export default function ServicePurchasePanel({
                   inputMode="numeric"
                   maxLength={11}
                   placeholder="08012345678"
-                  className={
-                    inputClass
-                  }
+                  className="w-full rounded-xl border border-[#dbeafe] bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#1e40af] focus:ring-2 focus:ring-[#1e40af]/15 dark:border-[#1e3a6e] dark:bg-[#0d1526] dark:text-[#e8eeff]"
                 />
 
                 {phone.length > 0 &&
                   phone.length !==
                     11 && (
                     <p className="mt-2 text-xs font-medium text-[#dc2626]">
-                      Enter an 11-digit
-                      Nigerian phone number.
+                      Enter an 11-digit Nigerian
+                      phone number.
                     </p>
                   )}
+
               </div>
             </>
           )}
@@ -1603,6 +1594,7 @@ export default function ServicePurchasePanel({
             >
 
               <div>
+
                 <SectionLabel
                   eyebrow="Step 1"
                   title="Choose service"
@@ -1614,6 +1606,7 @@ export default function ServicePurchasePanel({
                 />
 
                 <div className="space-y-2.5">
+
                   {service.options?.map(
                     (item) => {
                       const disabled =
@@ -1628,25 +1621,21 @@ export default function ServicePurchasePanel({
                         <button
                           key={item.id}
                           type="button"
-                          disabled={
-                            disabled
+                          disabled={disabled}
+                          onClick={() =>
+                            handleExamOptionChange(
+                              item
+                            )
                           }
-                          onClick={() => {
-                            if (
-                              disabled
-                            ) {
-                              return;
-                            }
-
-                            handleEducationOptionChange(
-                              item.id
-                            );
-                          }}
-                          className={`w-full ${choiceClass(
-                            selected,
-                            disabled
-                          )}`}
+                          className={`w-full cursor-pointer rounded-2xl border p-4 text-left transition-all ${
+                            selected
+                              ? "border-[#1e40af] bg-[#f0f4ff] shadow-sm dark:border-[#3b60d4] dark:bg-[#101a2d]"
+                              : disabled
+                                ? "cursor-not-allowed border-[#dbeafe] bg-white opacity-50 dark:border-[#1e3a6e] dark:bg-[#152040]"
+                                : "border-[#dbeafe] bg-white hover:border-[#1e40af] hover:shadow-sm dark:border-[#1e3a6e] dark:bg-[#152040]"
+                          }`}
                         >
+
                           <div className="flex items-start gap-3">
 
                             <span
@@ -1662,10 +1651,9 @@ export default function ServicePurchasePanel({
                             <span className="min-w-0 flex-1">
 
                               <span className="flex items-start justify-between gap-3">
+
                                 <span className="text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
-                                  {
-                                    item.title
-                                  }
+                                  {item.title}
                                 </span>
 
                                 <span
@@ -1679,33 +1667,37 @@ export default function ServicePurchasePanel({
                                     ? "Coming soon"
                                     : "Available"}
                                 </span>
+
                               </span>
 
                               {item.description && (
                                 <span className="mt-1 block text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                                  {
-                                    item.description
-                                  }
+                                  {item.description}
                                 </span>
                               )}
 
                             </span>
 
                           </div>
+
                         </button>
                       );
                     }
                   )}
+
                 </div>
+
               </div>
 
               {selectedExamProduct && (
                 <>
                   <div>
+
                     <SectionLabel
                       eyebrow="Step 2"
                       title={
-                        isJamb
+                        service.slug ===
+                        "jamb"
                           ? "Number of candidates"
                           : "Purchase quantity"
                       }
@@ -1727,23 +1719,31 @@ export default function ServicePurchasePanel({
                         educationMax
                       }
                       onChange={
-                        setEducationQuantity
+                        handleEducationQuantityChange
                       }
                       label={
-                        isJamb
+                        service.slug ===
+                        "jamb"
                           ? "Candidates"
-                          : "PINs / Tokens"
+                          : isNecoExternalRegistration
+                            ? "Registration PINs"
+                            : "PINs / Tokens"
                       }
                       helper={
-                        isJamb
+                        service.slug ===
+                        "jamb"
                           ? "Each candidate will require a separate JAMB PIN/order entry."
-                          : "Purchase more than one PIN or token in the same order."
+                          : isNecoExternalRegistration
+                            ? "Purchase multiple NECO GCE / External registration PINs in one order."
+                            : "Purchase more than one PIN or token in the same order."
                       }
                     />
+
                   </div>
 
                   {isBulkEligible && (
                     <div>
+
                       <BulkToggle
                         enabled={
                           bulkMode
@@ -1751,17 +1751,28 @@ export default function ServicePurchasePanel({
                         onChange={
                           handleBulkChange
                         }
+                        title={
+                          isNecoExternalRegistration
+                            ? "Bulk registration"
+                            : "Bulk order"
+                        }
+                        helper={
+                          isNecoExternalRegistration
+                            ? "Purchase multiple NECO GCE / External registration PINs together."
+                            : "Purchase multiple PINs or tokens together."
+                        }
                       />
 
                       {bulkMode && (
                         <p className="mt-2 text-[10px] leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                          Bulk quantity is prepared
-                          as 20–100 units. Final limits
-                          and bulk pricing must be
-                          confirmed by the connected
-                          provider before production.
+                          Bulk quantity is currently prepared
+                          for {educationMin}–{educationMax}
+                          units. Final limits and pricing will
+                          be confirmed by the connected provider
+                          before production.
                         </p>
                       )}
+
                     </div>
                   )}
 
@@ -1775,10 +1786,10 @@ export default function ServicePurchasePanel({
                         </p>
 
                         <p className="mt-1 text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
-                          {educationUnitPrice !==
+                          {validEducationPrice !==
                           null
                             ? formatNaira(
-                                educationUnitPrice
+                                validEducationPrice
                               )
                             : "Provider price"}
                         </p>
@@ -1789,15 +1800,15 @@ export default function ServicePurchasePanel({
                       </span>
 
                       <div className="text-center">
+
                         <p className="text-[10px] font-medium uppercase tracking-wide text-[#64748b] dark:text-[#94a3b8]">
                           Quantity
                         </p>
 
                         <p className="mt-1 text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
-                          {
-                            educationQuantity
-                          }
+                          {educationQuantity}
                         </p>
+
                       </div>
 
                       <span className="text-[#64748b]">
@@ -1805,6 +1816,7 @@ export default function ServicePurchasePanel({
                       </span>
 
                       <div className="text-right">
+
                         <p className="text-[10px] font-medium uppercase tracking-wide text-[#64748b] dark:text-[#94a3b8]">
                           Total
                         </p>
@@ -1817,18 +1829,18 @@ export default function ServicePurchasePanel({
                               )
                             : "Calculated at checkout"}
                         </p>
+
                       </div>
 
                     </div>
 
-                    {educationUnitPrice ===
+                    {validEducationPrice ===
                       null && (
                       <p className="mt-3 border-t border-[#bfdbfe] pt-3 text-[10px] leading-relaxed text-[#64748b] dark:border-[#294b86] dark:text-[#94a3b8]">
-                        The provider price is not
-                        hard-coded. The final price
-                        should come from the connected
-                        backend/provider before the
-                        transaction is submitted.
+                        The provider price is intentionally
+                        not hard-coded. Once the backend returns
+                        the live variation price, TEKSUM will
+                        calculate the total automatically.
                       </p>
                     )}
 
@@ -1846,6 +1858,7 @@ export default function ServicePurchasePanel({
           {isInternet && (
             <>
               <div>
+
                 <SectionLabel
                   eyebrow="Step 1"
                   title="Choose internet provider"
@@ -1853,6 +1866,7 @@ export default function ServicePurchasePanel({
                 />
 
                 <div className="grid grid-cols-2 gap-2.5">
+
                   {service.providers?.map(
                     (item) => (
                       <button
@@ -1864,15 +1878,20 @@ export default function ServicePurchasePanel({
                           setProvider(
                             item.serviceID
                           );
-
-                          setAccount("");
+                          setAccount(
+                            ""
+                          );
                         }}
-                        className={choiceClass(
+                        className={`cursor-pointer rounded-2xl border p-3 text-left transition-all ${
                           provider ===
-                            item.serviceID
-                        )}
+                          item.serviceID
+                            ? "border-[#1e40af] bg-[#f0f4ff] shadow-sm dark:border-[#3b60d4] dark:bg-[#101a2d]"
+                            : "border-[#dbeafe] bg-white hover:border-[#1e40af] dark:border-[#1e3a6e] dark:bg-[#152040]"
+                        }`}
                       >
+
                         <div className="flex items-center gap-3">
+
                           <ProviderLogo
                             name={
                               item.name
@@ -1881,24 +1900,26 @@ export default function ServicePurchasePanel({
 
                           <div className="min-w-0">
                             <p className="text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
-                              {
-                                item.name
-                              }
+                              {item.name}
                             </p>
 
                             <p className="mt-0.5 text-[11px] text-[#64748b] dark:text-[#94a3b8]">
-                              Internet
-                              subscription
+                              Internet subscription
                             </p>
                           </div>
+
                         </div>
+
                       </button>
                     )
                   )}
+
                 </div>
+
               </div>
 
               <div>
+
                 <SectionLabel
                   eyebrow="Step 2"
                   title={
@@ -1921,30 +1942,31 @@ export default function ServicePurchasePanel({
                   placeholder={
                     accountPlaceholder
                   }
-                  className={
-                    inputClass
-                  }
+                  className="w-full rounded-xl border border-[#dbeafe] bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#1e40af] focus:ring-2 focus:ring-[#1e40af]/15 dark:border-[#1e3a6e] dark:bg-[#0d1526] dark:text-[#e8eeff]"
                 />
+
               </div>
 
               <div>
+
                 <SectionLabel
                   eyebrow="Step 3"
                   title="Internet plan"
                 />
 
                 <div className="rounded-2xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-4 dark:border-[#334155] dark:bg-[#0d1526]">
+
                   <p className="text-sm font-semibold text-[#334155] dark:text-[#cbd5e1]">
-                    Plans will load from the
-                    provider
+                    Plans will load from the provider
                   </p>
 
                   <p className="mt-1 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                    Live Smile and Spectranet
-                    plans should be retrieved
-                    during backend integration.
+                    Live Smile and Spectranet plans will be
+                    retrieved during backend integration.
                   </p>
+
                 </div>
+
               </div>
             </>
           )}
@@ -1957,6 +1979,7 @@ export default function ServicePurchasePanel({
             isCable) && (
             <>
               <div>
+
                 <SectionLabel
                   eyebrow="Step 1"
                   title={
@@ -1967,6 +1990,7 @@ export default function ServicePurchasePanel({
                 />
 
                 <div className="grid grid-cols-2 gap-2">
+
                   {service.providers?.map(
                     (item) => (
                       <button
@@ -1979,12 +2003,16 @@ export default function ServicePurchasePanel({
                             item.serviceID
                           )
                         }
-                        className={choiceClass(
+                        className={`cursor-pointer rounded-2xl border p-3 text-left transition-all ${
                           provider ===
-                            item.serviceID
-                        )}
+                          item.serviceID
+                            ? "border-[#1e40af] bg-[#f0f4ff] shadow-sm dark:border-[#3b60d4] dark:bg-[#101a2d]"
+                            : "border-[#dbeafe] bg-white hover:border-[#1e40af] dark:border-[#1e3a6e] dark:bg-[#152040]"
+                        }`}
                       >
+
                         <div className="flex items-center gap-2.5">
+
                           <ProviderLogo
                             name={
                               item.name
@@ -1993,25 +2021,29 @@ export default function ServicePurchasePanel({
                           />
 
                           <span className="text-xs font-bold text-[#334155] dark:text-[#cbd5e1]">
-                            {
-                              item.name
-                            }
+                            {item.name}
                           </span>
+
                         </div>
+
                       </button>
                     )
                   )}
+
                 </div>
+
               </div>
 
               {isElectricity && (
                 <div>
+
                   <SectionLabel
                     eyebrow="Step 2"
                     title="Meter type"
                   />
 
                   <div className="grid grid-cols-2 gap-2">
+
                     {service.meterTypes?.map(
                       (item) => (
                         <button
@@ -2022,20 +2054,25 @@ export default function ServicePurchasePanel({
                               item
                             )
                           }
-                          className={choiceClass(
+                          className={`cursor-pointer rounded-xl border p-3 text-xs font-bold transition-all ${
                             meterType ===
-                              item
-                          )}
+                            item
+                              ? "border-[#1e40af] bg-[#f0f4ff] text-[#1e40af] dark:border-[#3b60d4] dark:bg-[#101a2d] dark:text-[#3b60d4]"
+                              : "border-[#dbeafe] bg-white text-[#334155] hover:border-[#1e40af] dark:border-[#1e3a6e] dark:bg-[#152040] dark:text-[#cbd5e1]"
+                          }`}
                         >
                           {item}
                         </button>
                       )
                     )}
+
                   </div>
+
                 </div>
               )}
 
               <div>
+
                 <SectionLabel
                   eyebrow={
                     isElectricity
@@ -2059,14 +2096,14 @@ export default function ServicePurchasePanel({
                   placeholder={
                     service.accountPlaceholder
                   }
-                  className={
-                    inputClass
-                  }
+                  className="w-full rounded-xl border border-[#dbeafe] bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#1e40af] focus:ring-2 focus:ring-[#1e40af]/15 dark:border-[#1e3a6e] dark:bg-[#0d1526] dark:text-[#e8eeff]"
                 />
+
               </div>
 
               {isElectricity && (
                 <div>
+
                   <SectionLabel
                     eyebrow="Step 4"
                     title="Amount"
@@ -2079,9 +2116,7 @@ export default function ServicePurchasePanel({
                         event.target.value
                       )
                     }
-                    className={
-                      inputClass
-                    }
+                    className="w-full rounded-xl border border-[#dbeafe] bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition focus:border-[#1e40af] focus:ring-2 focus:ring-[#1e40af]/15 dark:border-[#1e3a6e] dark:bg-[#0d1526] dark:text-[#e8eeff]"
                   >
                     <option value="">
                       Select amount
@@ -2097,31 +2132,36 @@ export default function ServicePurchasePanel({
                         </option>
                       )
                     )}
+
                   </select>
+
                 </div>
               )}
 
               {isCable && (
                 <div>
+
                   <SectionLabel
                     eyebrow="Step 3"
                     title="Choose package"
                   />
 
                   <div className="rounded-2xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-4 dark:border-[#334155] dark:bg-[#0d1526]">
+
                     <p className="text-sm font-semibold text-[#334155] dark:text-[#cbd5e1]">
-                      Bouquets will load from the
-                      provider
+                      Bouquets will load from the provider
                     </p>
 
                     <p className="mt-1 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                      Current packages and prices
-                      should be retrieved during
-                      backend integration.
+                      Current packages and prices will be
+                      retrieved during backend integration.
                     </p>
+
                   </div>
+
                 </div>
               )}
+
             </>
           )}
 
@@ -2137,12 +2177,14 @@ export default function ServicePurchasePanel({
             !isInternet &&
             !isExam && (
               <div>
+
                 <SectionLabel
                   eyebrow="Step 1"
                   title="Choose service"
                 />
 
                 <div className="space-y-2">
+
                   {service.options.map(
                     (item) => {
                       const disabled =
@@ -2153,24 +2195,22 @@ export default function ServicePurchasePanel({
                         <button
                           key={item.id}
                           type="button"
-                          disabled={
-                            disabled
+                          disabled={disabled}
+                          onClick={() =>
+                            setOption(
+                              item.id
+                            )
                           }
-                          onClick={() => {
-                            if (
-                              !disabled
-                            ) {
-                              setOption(
-                                item.id
-                              );
-                            }
-                          }}
-                          className={`w-full ${choiceClass(
+                          className={`w-full cursor-pointer rounded-2xl border p-4 text-left transition-all ${
                             option ===
-                              item.id,
-                            disabled
-                          )}`}
+                            item.id
+                              ? "border-[#1e40af] bg-[#f0f4ff] shadow-sm dark:border-[#3b60d4] dark:bg-[#101a2d]"
+                              : disabled
+                                ? "cursor-not-allowed border-[#dbeafe] bg-white opacity-50 dark:border-[#1e3a6e] dark:bg-[#152040]"
+                                : "border-[#dbeafe] bg-white hover:border-[#1e40af] dark:border-[#1e3a6e] dark:bg-[#152040]"
+                          }`}
                         >
+
                           <div className="flex items-start gap-3">
 
                             <span
@@ -2187,10 +2227,9 @@ export default function ServicePurchasePanel({
                             <span className="min-w-0 flex-1">
 
                               <span className="flex items-start justify-between gap-3">
+
                                 <span className="text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
-                                  {
-                                    item.title
-                                  }
+                                  {item.title}
                                 </span>
 
                                 <span
@@ -2204,24 +2243,26 @@ export default function ServicePurchasePanel({
                                     ? "Coming soon"
                                     : "Available"}
                                 </span>
+
                               </span>
 
                               {item.description && (
                                 <span className="mt-1 block text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                                  {
-                                    item.description
-                                  }
+                                  {item.description}
                                 </span>
                               )}
 
                             </span>
 
                           </div>
+
                         </button>
                       );
                     }
                   )}
+
                 </div>
+
               </div>
             )}
 
@@ -2229,39 +2270,43 @@ export default function ServicePurchasePanel({
               CONTINUE
           =================================================== */}
 
-          {canContinue ? (
-            isAirtime ||
-            isData ||
-            isExam ? (
-              <button
-                type="button"
-                onClick={
-                  openReview
-                }
-                className="w-full cursor-pointer rounded-xl bg-[#1e40af] py-3.5 text-center text-sm font-semibold text-white transition hover:bg-[#1d3a9e] dark:bg-[#3b60d4] dark:hover:bg-[#2d50c0]"
-              >
-                Continue to Purchase
-              </button>
+          <div>
+
+            {canContinue ? (
+              isAirtime ||
+              isData ||
+              isExam ? (
+                <button
+                  type="button"
+                  onClick={
+                    openReview
+                  }
+                  disabled={
+                    isSubmitting
+                  }
+                  className="w-full cursor-pointer rounded-xl bg-[#1e40af] py-3.5 text-center text-sm font-semibold text-white transition hover:bg-[#1d3a9e] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-[#3b60d4] dark:hover:bg-[#2d50c0]"
+                >
+                  Continue to Purchase
+                </button>
+              ) : (
+                <Link
+                  href="/register"
+                  className="block w-full rounded-xl bg-[#1e40af] py-3.5 text-center text-sm font-semibold text-white transition hover:bg-[#1d3a9e] dark:bg-[#3b60d4] dark:hover:bg-[#2d50c0]"
+                >
+                  Continue to Purchase
+                </Link>
+              )
             ) : (
               <button
                 type="button"
-                onClick={
-                  openReview
-                }
-                className="w-full cursor-pointer rounded-xl bg-[#1e40af] py-3.5 text-center text-sm font-semibold text-white transition hover:bg-[#1d3a9e] dark:bg-[#3b60d4] dark:hover:bg-[#2d50c0]"
+                disabled
+                className="w-full cursor-not-allowed rounded-xl bg-[#cbd5e1] py-3.5 text-center text-sm font-semibold text-[#64748b] dark:bg-[#334155] dark:text-[#94a3b8]"
               >
-                Continue to Purchase
+                Complete your selections
               </button>
-            )
-          ) : (
-            <button
-              type="button"
-              disabled
-              className="w-full cursor-not-allowed rounded-xl bg-[#cbd5e1] py-3.5 text-center text-sm font-semibold text-[#64748b] dark:bg-[#334155] dark:text-[#94a3b8]"
-            >
-              Complete your selections
-            </button>
-          )}
+            )}
+
+          </div>
 
           <p className="text-center text-xs text-[#475569] dark:text-[#7b8ebc]">
             Already have an account?{" "}
@@ -2287,6 +2332,7 @@ export default function ServicePurchasePanel({
           aria-modal="true"
           aria-labelledby="purchase-review-title"
         >
+
           <div className="w-full max-w-md overflow-hidden rounded-3xl border border-[#dbeafe] bg-white shadow-2xl dark:border-[#1e3a6e] dark:bg-[#152040]">
 
             <div className="border-b border-[#e2e8f0] px-5 py-5 dark:border-[#1e3a6e]">
@@ -2294,6 +2340,7 @@ export default function ServicePurchasePanel({
               <div className="flex items-start justify-between gap-4">
 
                 <div>
+
                   <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#10b981] dark:text-[#34d399]">
                     Final review
                   </p>
@@ -2307,15 +2354,14 @@ export default function ServicePurchasePanel({
                       ? "education purchase"
                       : isAirtime
                         ? "airtime purchase"
-                        : isData
-                          ? "data purchase"
-                          : "purchase"}
+                        : "purchase"}
                   </h3>
 
                   <p className="mt-1 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
                     Please check the details below
                     before continuing.
                   </p>
+
                 </div>
 
                 <button
@@ -2323,8 +2369,11 @@ export default function ServicePurchasePanel({
                   onClick={
                     closeReview
                   }
+                  disabled={
+                    isSubmitting
+                  }
                   aria-label="Close review"
-                  className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#f1f5f9] text-[#64748b] transition hover:bg-[#e2e8f0] dark:bg-[#0d1526] dark:text-[#94a3b8]"
+                  className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#f1f5f9] text-[#64748b] transition hover:bg-[#e2e8f0] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#0d1526] dark:text-[#94a3b8]"
                 >
                   ×
                 </button>
@@ -2366,34 +2415,18 @@ export default function ServicePurchasePanel({
                       value={
                         bulkMode
                           ? "Bulk order"
-                          : isJamb
-                            ? "Single / Multiple"
-                            : "Standard order"
-                      }
-                    />
-
-                    <ReviewRow
-                      label="Price per unit"
-                      value={
-                        educationUnitPrice !==
-                        null
-                          ? formatNaira(
-                              educationUnitPrice
-                            )
-                          : "Provider price"
+                          : "Standard order"
                       }
                     />
                   </>
                 ) : (
                   <>
-                    {network && (
-                      <ReviewRow
-                        label="Network"
-                        value={
-                          network
-                        }
-                      />
-                    )}
+                    <ReviewRow
+                      label="Network"
+                      value={
+                        network
+                      }
+                    />
 
                     {isData && (
                       <>
@@ -2423,80 +2456,12 @@ export default function ServicePurchasePanel({
                       />
                     )}
 
-                    {isInternet && (
-                      <ReviewRow
-                        label="Provider"
-                        value={
-                          selectedProvider?.name ||
-                          provider
-                        }
-                      />
-                    )}
-
-                    {isElectricity && (
-                      <>
-                        <ReviewRow
-                          label="Provider"
-                          value={
-                            selectedProvider?.name ||
-                            provider
-                          }
-                        />
-
-                        <ReviewRow
-                          label="Meter type"
-                          value={
-                            meterType
-                          }
-                        />
-                      </>
-                    )}
-
-                    {isCable && (
-                      <ReviewRow
-                        label="Provider"
-                        value={
-                          selectedProvider?.name ||
-                          provider
-                        }
-                      />
-                    )}
-
-                    {(isAirtime ||
-                      isData) && (
-                      <ReviewRow
-                        label="Recipient"
-                        value={
-                          phone
-                        }
-                      />
-                    )}
-
-                    {(isInternet ||
-                      isElectricity ||
-                      isCable) && (
-                      <ReviewRow
-                        label={
-                          isElectricity
-                            ? "Meter / Account"
-                            : "Account"
-                        }
-                        value={
-                          account
-                        }
-                      />
-                    )}
-
-                    {selectedAmount && (
-                      <ReviewRow
-                        label="Amount"
-                        value={
-                          formatNaira(
-                            selectedAmount
-                          )
-                        }
-                      />
-                    )}
+                    <ReviewRow
+                      label="Recipient"
+                      value={
+                        phone
+                      }
+                    />
                   </>
                 )}
 
@@ -2514,13 +2479,12 @@ export default function ServicePurchasePanel({
                         </p>
 
                         <p className="mt-1 text-lg font-extrabold text-[#0f172a] dark:text-[#e8eeff]">
-                          {
-                            educationQuantity
-                          }
+                          {educationQuantity}
                         </p>
                       </div>
 
                       <div className="text-right">
+
                         <p className="text-[10px] font-medium uppercase tracking-wide text-[#64748b] dark:text-[#94a3b8]">
                           Total
                         </p>
@@ -2533,6 +2497,7 @@ export default function ServicePurchasePanel({
                               )
                             : "Provider price"}
                         </p>
+
                       </div>
 
                     </div>
@@ -2540,9 +2505,8 @@ export default function ServicePurchasePanel({
                     {educationTotal ===
                       null && (
                       <p className="mt-3 border-t border-[#bfdbfe] pt-3 text-[10px] leading-relaxed text-[#64748b] dark:border-[#294b86] dark:text-[#94a3b8]">
-                        The final amount will be
-                        calculated from the live
-                        provider price before the
+                        The final amount will be calculated
+                        from the live provider price before the
                         transaction is submitted.
                       </p>
                     )}
@@ -2551,6 +2515,7 @@ export default function ServicePurchasePanel({
                   <div className="flex items-center justify-between">
 
                     <div>
+
                       <p className="text-[10px] font-medium uppercase tracking-wide text-[#64748b] dark:text-[#94a3b8]">
                         Amount to pay
                       </p>
@@ -2559,12 +2524,11 @@ export default function ServicePurchasePanel({
                         {isData
                           ? selectedPlanObject?.price ||
                             "Provider price"
-                          : selectedAmount
-                            ? formatNaira(
-                                selectedAmount
-                              )
-                            : "Provider price"}
+                          : formatNaira(
+                              selectedAmount
+                            )}
                       </p>
+
                     </div>
 
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1e40af] text-sm font-black text-white dark:bg-[#3b60d4]">
@@ -2579,7 +2543,7 @@ export default function ServicePurchasePanel({
               <p className="mt-3 text-center text-[10px] leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
                 {isExam
                   ? "PINs and tokens will be delivered according to the connected provider's fulfilment response."
-                  : "Make sure the recipient and service details are correct before continuing."}
+                  : "Make sure the recipient details are correct before continuing."}
               </p>
 
             </div>
@@ -2591,7 +2555,10 @@ export default function ServicePurchasePanel({
                 onClick={
                   editPurchase
                 }
-                className="flex-1 cursor-pointer rounded-xl border border-[#cbd5e1] bg-white px-4 py-3 text-sm font-semibold text-[#334155] transition hover:bg-[#f8fafc] dark:border-[#475569] dark:bg-[#152040] dark:text-[#cbd5e1]"
+                disabled={
+                  isSubmitting
+                }
+                className="flex-1 cursor-pointer rounded-xl border border-[#cbd5e1] bg-white px-4 py-3 text-sm font-semibold text-[#334155] transition hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#475569] dark:bg-[#152040] dark:text-[#cbd5e1]"
               >
                 Edit
               </button>
@@ -2599,52 +2566,19 @@ export default function ServicePurchasePanel({
               <button
                 type="button"
                 onClick={
-                  startPurchase
+                  submitPurchase
                 }
-                className="flex flex-1 cursor-pointer items-center justify-center rounded-xl bg-[#1e40af] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1d3a9e] dark:bg-[#3b60d4]"
+                disabled={
+                  isSubmitting
+                }
+                className="flex flex-1 items-center justify-center rounded-xl bg-[#1e40af] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1d3a9e] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-[#3b60d4]"
               >
-                Confirm
+                {isSubmitting
+                  ? "Processing..."
+                  : "Confirm"}
               </button>
 
             </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================
-          PROCESSING STATE
-      ========================================================= */}
-
-      {purchaseStatus ===
-        "processing" && (
-        <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="purchase-processing-title"
-        >
-          <div className="w-full max-w-sm rounded-3xl border border-[#dbeafe] bg-white p-6 text-center shadow-2xl dark:border-[#1e3a6e] dark:bg-[#152040]">
-
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f0f4ff] dark:bg-[#101a2d]">
-              <span className="h-8 w-8 animate-spin rounded-full border-4 border-[#dbeafe] border-t-[#1e40af] dark:border-[#294b86] dark:border-t-[#3b60d4]" />
-            </div>
-
-            <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#10b981] dark:text-[#34d399]">
-              Processing
-            </p>
-
-            <h3
-              id="purchase-processing-title"
-              className="mt-1 text-lg font-bold text-[#0f172a] dark:text-[#e8eeff]"
-            >
-              Processing your purchase
-            </h3>
-
-            <p className="mt-2 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-              Please don't close this window or
-              click the purchase button again.
-            </p>
 
           </div>
         </div>
@@ -2662,6 +2596,7 @@ export default function ServicePurchasePanel({
           aria-modal="true"
           aria-labelledby="purchase-pending-title"
         >
+
           <div className="w-full max-w-md overflow-hidden rounded-3xl border border-[#dbeafe] bg-white shadow-2xl dark:border-[#1e3a6e] dark:bg-[#152040]">
 
             <div className="px-5 py-7 text-center">
@@ -2729,6 +2664,7 @@ export default function ServicePurchasePanel({
           aria-modal="true"
           aria-labelledby="purchase-success-title"
         >
+
           <div className="w-full max-w-md overflow-hidden rounded-3xl border border-[#dbeafe] bg-white shadow-2xl dark:border-[#1e3a6e] dark:bg-[#152040]">
 
             <div className="px-5 py-7 text-center">
@@ -2871,6 +2807,7 @@ export default function ServicePurchasePanel({
           aria-modal="true"
           aria-labelledby="purchase-error-title"
         >
+
           <div className="w-full max-w-md overflow-hidden rounded-3xl border border-[#dbeafe] bg-white shadow-2xl dark:border-[#1e3a6e] dark:bg-[#152040]">
 
             <div className="px-5 py-7 text-center">
@@ -2914,8 +2851,7 @@ export default function ServicePurchasePanel({
 
                 <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
                   <li>
-                    • Check the details you
-                    entered.
+                    • Check the details you entered.
                   </li>
 
                   <li>
@@ -2923,8 +2859,8 @@ export default function ServicePurchasePanel({
                   </li>
 
                   <li>
-                    • Contact support if the
-                    problem continues.
+                    • Contact support if the problem
+                    continues.
                   </li>
                 </ul>
 
