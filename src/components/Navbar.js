@@ -62,6 +62,26 @@ export default function Navbar() {
       );
   }, []);
 
+  // Close mobile menu when viewport becomes desktop-sized
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth >= 768) {
+        setMenuOpen(false);
+      }
+    }
+
+    window.addEventListener(
+      "resize",
+      handleResize
+    );
+
+    return () =>
+      window.removeEventListener(
+        "resize",
+        handleResize
+      );
+  }, []);
+
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/#pricing", label: "Pricing" },
@@ -69,22 +89,70 @@ export default function Navbar() {
     { href: "/contact", label: "Contact" },
   ];
 
+  const mobileServiceLinks = [
+    {
+      label: "Airtime",
+      icon: "📱",
+      href: "/services/airtime",
+    },
+    {
+      label: "Data",
+      icon: "📶",
+      href: "/services/data",
+    },
+    {
+      label: "Internet",
+      icon: "🌐",
+      href: "/services/internet",
+    },
+    {
+      label: "JAMB Services",
+      icon: "🎓",
+      href: "/services/jamb",
+    },
+    {
+      label: "WAEC Services",
+      icon: "📄",
+      href: "/services/waec-result",
+    },
+    {
+      label: "NECO Services",
+      icon: "🎫",
+      href: "/services/neco-result",
+    },
+    {
+      label: "NABTEB Services",
+      icon: "📋",
+      href: "/services/nabteb",
+    },
+    {
+      label: "NBAIS Services",
+      icon: "🏫",
+      href: "/services/nbais",
+    },
+    {
+      label: "Bills & TV",
+      icon: "⚡",
+      href: "/services/electricity",
+    },
+  ];
+
   return (
-    <nav className="sticky top-0 z-50 border-b border-[#dbeafe] bg-white dark:border-[#1e3a6e] dark:bg-[#0d1526]">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+    <nav className="sticky top-0 z-50 w-full border-b border-[#dbeafe] bg-white dark:border-[#1e3a6e] dark:bg-[#0d1526]">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
 
         {/* Logo */}
         <Link
           href="/"
-          className="flex items-center gap-2"
+          className="flex min-w-0 shrink-0 items-center gap-2"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1e40af]">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1e40af]">
             <span className="text-sm font-bold text-white">
               TS
             </span>
           </div>
 
-          <span className="text-xl font-extrabold text-[#1e40af] dark:text-[#3b60d4]">
+          <span className="truncate text-xl font-extrabold text-[#1e40af] dark:text-[#3b60d4]">
             TEKSUM
           </span>
         </Link>
@@ -222,7 +290,7 @@ export default function Navbar() {
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
 
           {/* Theme toggle */}
           {mounted && (
@@ -235,7 +303,7 @@ export default function Navbar() {
                     : "dark"
                 )
               }
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#dbeafe] bg-white text-[#1e40af] transition hover:border-[#1e40af] dark:border-[#1e3a6e] dark:bg-[#152040] dark:text-[#e8eeff]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#dbeafe] bg-white text-[#1e40af] transition hover:border-[#1e40af] dark:border-[#1e3a6e] dark:bg-[#152040] dark:text-[#e8eeff]"
               aria-label="Toggle theme"
             >
               {theme === "dark" ? (
@@ -295,7 +363,7 @@ export default function Navbar() {
             onClick={() =>
               setMenuOpen(!menuOpen)
             }
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#dbeafe] text-[#0f172a] md:hidden dark:border-[#1e3a6e] dark:text-[#e8eeff]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#dbeafe] text-[#0f172a] md:hidden dark:border-[#1e3a6e] dark:text-[#e8eeff]"
             aria-label="Toggle menu"
             aria-expanded={menuOpen}
           >
@@ -310,8 +378,8 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="border-t border-[#dbeafe] bg-white px-4 pb-4 md:hidden dark:border-[#1e3a6e] dark:bg-[#0d1526]">
-          <div className="flex flex-col gap-1 pt-3">
+        <div className="w-full overflow-x-hidden border-t border-[#dbeafe] bg-white px-4 pb-4 md:hidden dark:border-[#1e3a6e] dark:bg-[#0d1526]">
+          <div className="flex min-w-0 flex-col gap-1 pt-3">
 
             <Link
               href="/"
@@ -328,58 +396,26 @@ export default function Navbar() {
               Services
             </p>
 
-            {[
-              {
-                label: "Airtime & Data",
-                icon: "📱",
-                href: "/services/airtime",
-              },
-              {
-                label: "JAMB Services",
-                icon: "🎓",
-                href: "/services/jamb",
-              },
-              {
-                label: "WAEC Services",
-                icon: "📄",
-                href: "/services/waec-result",
-              },
-              {
-                label: "NECO Services",
-                icon: "🎫",
-                href: "/services/neco-result",
-              },
-              {
-                label: "NABTEB Services",
-                icon: "📋",
-                href: "/services/nabteb",
-              },
-              {
-                label: "NBAIS Services",
-                icon: "🏫",
-                href: "/services/nbais",
-              },
-              {
-                label: "Bills & TV",
-                icon: "⚡",
-                href: "/services/electricity",
-              },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() =>
-                  setMenuOpen(false)
-                }
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#0f172a] hover:bg-[#f0f4ff] dark:text-[#e8eeff] dark:hover:bg-[#152040]"
-              >
-                <span>
-                  {item.icon}
-                </span>
+            {mobileServiceLinks.map(
+              (item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() =>
+                    setMenuOpen(false)
+                  }
+                  className="flex min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#0f172a] hover:bg-[#f0f4ff] dark:text-[#e8eeff] dark:hover:bg-[#152040]"
+                >
+                  <span className="shrink-0">
+                    {item.icon}
+                  </span>
 
-                {item.label}
-              </Link>
-            ))}
+                  <span className="min-w-0 truncate">
+                    {item.label}
+                  </span>
+                </Link>
+              )
+            )}
 
             <Link
               href="/services"

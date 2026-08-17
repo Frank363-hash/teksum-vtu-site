@@ -27,33 +27,35 @@ const API_BASE_URL = (
  *
  * in .env.local while building the frontend.
  *
- * This allows protected dashboard pages to be previewed before
- * the real authentication backend exists.
+ * Demo mode allows the dashboard to be tested before the
+ * real authentication backend exists.
  *
  * IMPORTANT:
  * Demo mode must NOT be enabled in production.
  *
- * When the backend is ready, remove this environment variable
- * or set it to false.
+ * The demo session is created only when the user explicitly
+ * signs in with the demo credentials. It is NOT automatically
+ * created when someone visits the public website.
  */
+
 const DEMO_AUTH_ENABLED =
   process.env.NEXT_PUBLIC_DEMO_AUTH === "true";
 
 const ACCESS_TOKEN_KEY =
   "teksum_access_token";
 
-const USER_KEY = "teksum_user";
+const USER_KEY =
+  "teksum_user";
 
 const DEMO_LOGOUT_KEY =
   "teksum_demo_logged_out";
 
 /*
- * Temporary development user.
- *
- * This is intentionally clearly structured like a backend user
- * object so the dashboard can later consume the real backend
- * response without requiring a UI rewrite.
+ * ============================================================
+ * TEMPORARY DEVELOPMENT USER
+ * ============================================================
  */
+
 const DEMO_USER = {
   id: "demo-user-001",
   userId: "demo-user-001",
@@ -71,7 +73,8 @@ const DEMO_USER = {
   status: "verified",
   accountStatus: "verified",
 
-  createdAt: "2026-08-01T10:00:00.000Z",
+  createdAt:
+    "2026-08-01T10:00:00.000Z",
 };
 
 const DEMO_ACCESS_TOKEN =
@@ -310,17 +313,25 @@ async function parseResponse(response) {
 export function AuthProvider({
   children,
 }) {
-  const [accessToken, setAccessTokenState] =
-    useState("");
+  const [
+    accessToken,
+    setAccessTokenState,
+  ] = useState("");
 
-  const [user, setUserState] =
-    useState(null);
+  const [
+    user,
+    setUserState,
+  ] = useState(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [authError, setAuthError] =
-    useState("");
+  const [
+    authError,
+    setAuthError,
+  ] = useState("");
 
   const refreshInProgress =
     useRef(null);
@@ -416,7 +427,8 @@ export function AuthProvider({
    *
    * Development:
    * If the backend is not available and demo mode is enabled,
-   * a temporary demo session is used instead.
+   * the demo session can be created after an explicit demo
+   * login.
    */
 
   const refreshSession =
@@ -451,27 +463,13 @@ export function AuthProvider({
 
             if (!response.ok) {
               /*
-               * Backend unavailable during frontend development.
+               * IMPORTANT:
+               * Do NOT automatically create a demo
+               * session here.
                *
-               * Only use demo mode when explicitly enabled.
+               * Public pages must remain logged out
+               * until the user explicitly signs in.
                */
-              if (
-                DEMO_AUTH_ENABLED &&
-                !hasDemoLogoutFlag()
-              ) {
-                const demoStarted =
-                  startDemoSession();
-
-                if (demoStarted) {
-                  return {
-                    success: true,
-                    demo: true,
-                    token:
-                      DEMO_ACCESS_TOKEN,
-                    user: DEMO_USER,
-                  };
-                }
-              }
 
               clearSession();
 
@@ -494,8 +492,9 @@ export function AuthProvider({
               extractUser(data);
 
             /*
-             * Some backends only return a new access token.
-             * Preserve the existing user in that situation.
+             * Some backends only return a new
+             * access token. Preserve the existing
+             * user in that situation.
              */
             const nextUser =
               refreshedUser ||
@@ -513,8 +512,6 @@ export function AuthProvider({
 
             /*
              * A real backend session has been restored.
-             * Clear the demo logout flag so the real backend
-             * becomes the source of truth.
              */
             setDemoLogoutFlag(false);
 
@@ -530,26 +527,13 @@ export function AuthProvider({
             };
           } catch {
             /*
-             * If there is no backend yet, allow the explicitly
-             * enabled frontend demo session.
+             * IMPORTANT:
+             * Backend failure does NOT automatically
+             * log a public visitor into demo mode.
+             *
+             * Demo mode is started only from the
+             * explicit demo login flow.
              */
-            if (
-              DEMO_AUTH_ENABLED &&
-              !hasDemoLogoutFlag()
-            ) {
-              const demoStarted =
-                startDemoSession();
-
-              if (demoStarted) {
-                return {
-                  success: true,
-                  demo: true,
-                  token:
-                    DEMO_ACCESS_TOKEN,
-                  user: DEMO_USER,
-                };
-              }
-            }
 
             clearSession();
 
@@ -568,7 +552,6 @@ export function AuthProvider({
     }, [
       applySession,
       clearSession,
-      startDemoSession,
     ]);
 
   /*
@@ -589,9 +572,6 @@ export function AuthProvider({
        * FRONTEND DEMO LOGIN
        * ------------------------------------------------------
        *
-       * This allows you to test the login flow before the real
-       * backend exists.
-       *
        * Demo credentials:
        *
        * Email:
@@ -600,10 +580,8 @@ export function AuthProvider({
        * Password:
        * Demo@12345
        *
-       * This branch disappears simply by setting:
-       *
-       * NEXT_PUBLIC_DEMO_AUTH=false
-       *
+       * The demo session starts ONLY when these credentials
+       * are explicitly submitted.
        */
 
       if (
@@ -630,9 +608,10 @@ export function AuthProvider({
       }
 
       /*
-       * If demo mode is enabled but the user enters different
-       * demo credentials, continue to the real backend.
+       * If demo mode is enabled but the user enters
+       * different credentials, continue to the real backend.
        */
+
       try {
         const response =
           await fetch(
@@ -660,29 +639,6 @@ export function AuthProvider({
           );
 
         if (!response.ok) {
-          /*
-           * During frontend-only development, allow the
-           * demo account to be used if the backend does not
-           * exist yet.
-           */
-          if (
-            DEMO_AUTH_ENABLED &&
-            !hasDemoLogoutFlag()
-          ) {
-            const message =
-              extractMessage(
-                data,
-                "Unable to sign in. Use the TEKSUM demo account to preview the dashboard."
-              );
-
-            setAuthError(message);
-
-            return {
-              success: false,
-              message,
-            };
-          }
-
           const message =
             extractMessage(
               data,
@@ -757,23 +713,6 @@ export function AuthProvider({
           data,
         };
       } catch {
-        /*
-         * If there is no backend and demo mode is enabled,
-         * provide a useful instruction rather than showing
-         * a network error.
-         */
-        if (DEMO_AUTH_ENABLED) {
-          const message =
-            "Use the TEKSUM demo account: frank.demo@teksum.local";
-
-          setAuthError(message);
-
-          return {
-            success: false,
-            message,
-          };
-        }
-
         const message =
           "Unable to connect to the authentication server. Please try again.";
 
@@ -873,8 +812,8 @@ export function AuthProvider({
           );
 
         /*
-         * If registration immediately authenticates the user,
-         * establish the session.
+         * If registration immediately authenticates
+         * the user, establish the session.
          */
         if (
           token &&
@@ -889,8 +828,9 @@ export function AuthProvider({
         }
 
         /*
-         * If registration does not return a token but also
-         * does not require verification, restore the session.
+         * If registration does not return a token
+         * but also does not require verification,
+         * restore the session.
          */
         if (
           !token &&
@@ -954,7 +894,7 @@ export function AuthProvider({
       /*
        * In demo mode, remember that the user intentionally
        * logged out. This prevents the demo session from being
-       * recreated immediately on the next render.
+       * recreated accidentally.
        */
       if (
         DEMO_AUTH_ENABLED &&
@@ -965,8 +905,8 @@ export function AuthProvider({
 
       try {
         /*
-         * Don't waste time attempting a backend request for
-         * the temporary demo token.
+         * Don't attempt a backend request for the
+         * temporary demo token.
          */
         if (
           token !==
@@ -1014,11 +954,11 @@ export function AuthProvider({
    * Authenticated fetch helper
    * ----------------------------------------------------------
    *
-   * Dashboard, wallet, profile, purchase history and future
-   * purchase APIs can use authFetch().
+   * Dashboard, wallet, profile, purchase history
+   * and future purchase APIs can use authFetch().
    *
-   * If the backend returns 401, the helper attempts one
-   * session refresh and retries the request.
+   * If the backend returns 401, the helper attempts
+   * one session refresh and retries the request.
    */
 
   const authFetch =
@@ -1102,7 +1042,12 @@ export function AuthProvider({
         getStoredUser();
 
       /*
-       * Restore an existing temporary or real session first.
+       * Restore an existing session first.
+       *
+       * This means:
+       * - an authenticated user stays authenticated
+       * - a logged-out visitor stays logged out
+       * - demo mode is NOT automatically activated
        */
       if (
         storedToken &&
@@ -1118,47 +1063,73 @@ export function AuthProvider({
       }
 
       /*
-       * Ask the backend to restore the session.
+       * Ask the backend to restore a real session.
        *
-       * If it is unavailable and demo mode is enabled,
-       * refreshSession() creates the temporary demo session.
+       * If there is no backend yet, this simply fails
+       * and the user remains logged out unless they
+       * explicitly use the demo login.
        */
-      const refreshed =
-        await refreshSession();
+      if (!storedToken) {
+        const refreshed =
+          await refreshSession();
 
-      if (cancelled) {
-        return;
-      }
+        if (cancelled) {
+          return;
+        }
 
-      /*
-       * If refresh failed but a stored token exists,
-       * preserve it during frontend development.
-       */
-      if (
-        !refreshed.success &&
-        storedToken
-      ) {
-        setAccessTokenState(
+        /*
+         * If the backend successfully restored a real
+         * session, refreshSession() already applied it.
+         */
+        if (
+          refreshed.success
+        ) {
+          setLoading(false);
+          return;
+        }
+      } else {
+        /*
+         * There is already a stored token.
+         *
+         * We can attempt a backend refresh, but if the
+         * backend is unavailable we preserve the stored
+         * development session rather than silently
+         * logging the user out.
+         */
+        const refreshed =
+          await refreshSession();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (
+          !refreshed.success &&
           storedToken
-        );
+        ) {
+          setAccessTokenState(
+            storedToken
+          );
 
-        setUserState(
-          storedUser
-        );
+          setUserState(
+            storedUser
+          );
+        }
       }
 
       /*
-       * If there is no backend and no stored session,
-       * explicitly enabled demo mode provides the preview user.
+       * IMPORTANT:
+       *
+       * There is intentionally NO:
+       *
+       * startDemoSession()
+       *
+       * here.
+       *
+       * This prevents public pages from automatically
+       * becoming authenticated simply because demo mode
+       * is enabled.
        */
-      if (
-        !refreshed.success &&
-        !storedToken &&
-        DEMO_AUTH_ENABLED &&
-        !hasDemoLogoutFlag()
-      ) {
-        startDemoSession();
-      }
 
       setLoading(false);
     }
@@ -1170,7 +1141,6 @@ export function AuthProvider({
     };
   }, [
     refreshSession,
-    startDemoSession,
   ]);
 
   /*
@@ -1209,9 +1179,8 @@ export function AuthProvider({
       clearSession,
 
       /*
-       * Useful for identifying the frontend-only state while
-       * developing. The backend will become the source of truth
-       * once connected.
+       * Useful for identifying the frontend-only
+       * development state.
        */
       isDemoMode:
         DEMO_AUTH_ENABLED &&

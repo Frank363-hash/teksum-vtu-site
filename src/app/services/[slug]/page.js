@@ -172,11 +172,11 @@ export default async function ServicePage({
                     <div>
 
                       <p className="text-xs font-bold uppercase tracking-widest text-[#10b981]">
-                        Available choices
+                        Available options
                       </p>
 
                       <h2 className="mt-2 text-xl font-bold text-[#0f172a] dark:text-[#e8eeff]">
-                        Choose the exact service
+                        Choose what you need
                       </h2>
 
                     </div>
@@ -350,11 +350,10 @@ export default async function ServicePage({
                     </p>
 
                     <p className="mt-1 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                      The available options
-                      will become purchasable
-                      once the connected
-                      provider confirms
-                      support.
+                      This service is not
+                      available for purchase
+                      right now. Please check
+                      back later for updates.
                     </p>
 
                   </div>

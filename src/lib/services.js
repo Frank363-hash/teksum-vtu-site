@@ -9,7 +9,7 @@ export const services = [
     shortDescription:
       "Recharge MTN, Airtel, Glo or 9mobile lines quickly and securely.",
     description:
-      "Recharge any Nigerian mobile number with the network and amount you choose. You can buy airtime for yourself or send it to another number.",
+      "Recharge any Nigerian mobile number with the network and amount you choose. Buy airtime for yourself or send it to family, friends or another number.",
     formType: "telecom",
     networks: ["MTN", "Airtel", "Glo", "9mobile"],
     amounts: [
@@ -48,7 +48,7 @@ export const services = [
     shortDescription:
       "Choose your network, data type and the plan that suits you.",
     description:
-      "Buy data for MTN, Airtel, Glo and 9mobile. Available data categories and plans may vary by network and provider, with current plans and prices supplied during backend integration.",
+      "Buy data for MTN, Airtel, Glo and 9mobile. Choose from the available data categories and plans for your selected network.",
     formType: "data",
     networks: ["MTN", "Airtel", "Glo", "9mobile"],
 
@@ -138,8 +138,8 @@ export const services = [
     features: [
       "All four major Nigerian mobile networks",
       "Network-specific data categories",
-      "Current plans and prices can be loaded dynamically",
-      "Choose the plan that fits your needs",
+      "A range of plans to suit different needs",
+      "Choose the plan that works best for you",
     ],
 
     steps: [
@@ -160,7 +160,7 @@ export const services = [
     shortDescription:
       "Purchase supported JAMB UTME and Direct Entry registration PINs.",
     description:
-      "Choose the JAMB registration service you need, review the current price and complete your purchase securely from your TEKSUM wallet.",
+      "Choose the JAMB registration service you need, review the price shown and complete your purchase securely from your TEKSUM wallet.",
     formType: "exam",
     provider: "vtpass",
     serviceID: "jamb",
@@ -213,7 +213,7 @@ export const services = [
       },
     ],
 
-    amounts: ["Dynamic — fetched from provider"],
+    amounts: ["Dynamic — current price"],
     amountLabel: "JAMB Service",
 
     features: [
@@ -221,13 +221,13 @@ export const services = [
       "UTME with Mock",
       "Direct Entry",
       "Multiple-candidate purchase for supported PIN types",
-      "Current pricing can be supplied by the connected provider",
+      "Secure purchase from your TEKSUM wallet",
     ],
 
     steps: [
       "Choose the JAMB PIN type",
       "Select the number of candidates where applicable",
-      "Review the current price",
+      "Review the price shown",
       "Confirm your purchase",
     ],
   },
@@ -254,23 +254,23 @@ export const services = [
         provider: "vtpass",
         status: "available",
         description:
-          "Result-checking PIN / scratch card.",
+          "PIN for checking supported WAEC examination results.",
       },
     ],
 
-    amounts: ["Dynamic — fetched from provider"],
+    amounts: ["Dynamic — current price"],
     amountLabel: "Result Checker",
 
     features: [
       "WAEC result-checking service",
-      "Current provider pricing",
-      "PIN details can be attached to the transaction record",
+      "Simple and convenient purchase",
+      "Secure delivery after successful payment",
     ],
 
     steps: [
       "Select the result-checking service",
       "Enter the required details",
-      "Review the current price",
+      "Review the price shown",
       "Confirm your purchase",
     ],
   },
@@ -284,7 +284,7 @@ export const services = [
     shortDescription:
       "Purchase a WAEC registration PIN for supported candidate categories.",
     description:
-      "Choose the available WAEC registration category, review its availability and complete your purchase when the service is supported.",
+      "Choose the WAEC registration category you need, check its availability and complete your purchase when the service is available.",
     formType: "exam",
     provider: "vtpass",
     serviceID: "waec-registration",
@@ -304,17 +304,17 @@ export const services = [
         provider: null,
         status: "coming-soon",
         description:
-          "This option is shown for future availability and is not currently presented as a live provider service.",
+          "School-based registration option that is not currently available.",
       },
     ],
 
-    amounts: ["Dynamic — fetched from provider"],
+    amounts: ["Dynamic — current price"],
     amountLabel: "Registration Type",
 
     features: [
       "Private-candidate/GCE registration",
       "Clear availability status",
-      "Provider pricing can be loaded dynamically",
+      "Convenient registration purchase",
     ],
 
     steps: [
@@ -335,7 +335,7 @@ export const services = [
     shortDescription:
       "Purchase a WAEC verification PIN for supported verification services.",
     description:
-      "A separate WAEC verification PIN service for supported verification use cases.",
+      "Get a WAEC verification PIN for supported verification services quickly and conveniently through your TEKSUM wallet.",
     formType: "exam",
     provider: "vtuafrica",
     serviceID: "waec",
@@ -347,22 +347,22 @@ export const services = [
         provider: "vtuafrica",
         status: "available",
         description:
-          "Verification PIN service.",
+          "PIN for supported WAEC verification services.",
       },
     ],
 
-    amounts: ["Dynamic — fetched from provider"],
+    amounts: ["Dynamic — current price"],
     amountLabel: "Verification PIN",
 
     features: [
       "Separate from the WAEC result-checker PIN",
-      "Verification PIN service",
-      "Current provider pricing",
+      "Convenient verification PIN purchase",
+      "Secure delivery after successful payment",
     ],
 
     steps: [
       "Choose the verification PIN",
-      "Review the current price",
+      "Review the price shown",
       "Confirm your purchase",
       "Receive the PIN after successful fulfilment",
     ],
@@ -378,7 +378,7 @@ export const services = [
     shortDescription:
       "Purchase a NECO result-checking token for supported result services.",
     description:
-      "Purchase a NECO result-checking token. Internal and external candidate types remain clearly separated in the interface while the provider determines the available product.",
+      "Purchase a NECO result-checking token for supported result services. Available options are clearly displayed so you can choose the service that matches your needs.",
     formType: "exam",
     provider: "vtuafrica",
     serviceID: "neco",
@@ -390,22 +390,22 @@ export const services = [
         provider: "vtuafrica",
         status: "available",
         description:
-          "Provider-backed NECO result-checking token.",
+          "Token for checking supported NECO examination results.",
       },
     ],
 
-    amounts: ["Dynamic — fetched from provider"],
+    amounts: ["Dynamic — current price"],
     amountLabel: "Candidate Type",
 
     features: [
       "NECO result-checking token",
-      "Internal and external candidate choices in the interface",
-      "Provider product determines final availability and pricing",
+      "Clear service information",
+      "Convenient purchase from your TEKSUM wallet",
     ],
 
     steps: [
       "Choose the candidate type",
-      "Review the current token price",
+      "Review the token price",
       "Confirm your purchase",
       "Receive the token after successful fulfilment",
     ],
@@ -420,7 +420,7 @@ export const services = [
     shortDescription:
       "Purchase a NECO registration PIN for supported candidates.",
     description:
-      "Choose the NECO registration category you need. External/GCE registration is available where supported, while internal registration remains clearly marked until a matching provider product is confirmed.",
+      "Choose the NECO registration category you need, review its availability and complete your purchase when the service is available.",
     formType: "exam",
     provider: "vtuafrica",
     serviceID: "neco",
@@ -440,18 +440,18 @@ export const services = [
         provider: null,
         status: "coming-soon",
         description:
-          "School-based registration; no matching provider PIN product is currently enabled.",
+          "School-based registration option that is not currently available.",
       },
     ],
 
-    amounts: ["Dynamic — fetched from provider"],
+    amounts: ["Dynamic — current price"],
     amountLabel: "Registration Type",
 
     features: [
       "NECO GCE registration PIN",
-      "Internal SSCE kept separate from GCE",
+      "Clear registration categories",
       "Clear availability status",
-      "Current pricing can be loaded dynamically",
+      "Convenient purchase from your TEKSUM wallet",
     ],
 
     steps: [
@@ -472,7 +472,7 @@ export const services = [
     shortDescription:
       "Purchase supported NABTEB result-checking and GCE registration PINs.",
     description:
-      "Choose between NABTEB result checking and GCE registration services, then review the current price before completing your purchase.",
+      "Choose the NABTEB service you need, review the price shown and complete your purchase securely from your TEKSUM wallet.",
     formType: "exam",
     provider: "vtuafrica",
     serviceID: "nabteb",
@@ -485,7 +485,7 @@ export const services = [
         productCode: "1",
         status: "available",
         description:
-          "NABTEB result-checking PIN.",
+          "PIN for checking supported NABTEB examination results.",
       },
       {
         id: "gce-registration",
@@ -498,19 +498,19 @@ export const services = [
       },
     ],
 
-    amounts: ["Dynamic — fetched from provider"],
+    amounts: ["Dynamic — current price"],
     amountLabel: "NABTEB Service",
 
     features: [
       "NABTEB Result Checker PIN",
       "NABTEB GCE Registration PIN",
-      "Provider-backed service options",
-      "Current pricing can be supplied by the provider",
+      "Clear service options",
+      "Secure purchase from your TEKSUM wallet",
     ],
 
     steps: [
       "Choose the NABTEB service",
-      "Review the current price",
+      "Review the price shown",
       "Enter any required details",
       "Confirm your purchase",
     ],
@@ -524,9 +524,9 @@ export const services = [
     logo: "/education/nbais.png",
     category: "nbais",
     shortDescription:
-      "NBAIS registration and result services prepared for future provider support.",
+      "Access NBAIS registration and result services as they become available.",
     description:
-      "The NBAIS services requested for TEKSUM are displayed with clear availability labels. They remain unavailable for purchase until a supported provider product is confirmed.",
+      "Explore the NBAIS services planned for TEKSUM. Each option clearly shows its current availability so you always know what can be purchased.",
     formType: "exam",
     provider: null,
     serviceID: "nbais",
@@ -538,7 +538,7 @@ export const services = [
         provider: null,
         status: "coming-soon",
         description:
-          "Internal registration service requested by the client.",
+          "Internal registration service that is not currently available.",
       },
       {
         id: "registration-external",
@@ -546,7 +546,7 @@ export const services = [
         provider: null,
         status: "coming-soon",
         description:
-          "External registration service requested by the client.",
+          "External registration service that is not currently available.",
       },
       {
         id: "result-checker",
@@ -554,24 +554,24 @@ export const services = [
         provider: null,
         status: "coming-soon",
         description:
-          "Result-checking service requested by the client.",
+          "Result-checking service that is not currently available.",
       },
     ],
 
-    amounts: ["Provider price pending"],
+    amounts: ["Current price"],
     amountLabel: "NBAIS Service",
 
     features: [
-      "Client-requested NBAIS services",
+      "NBAIS registration services",
+      "NBAIS result-checking service",
       "Clear availability status",
-      "No unsupported provider product is presented as purchasable",
-      "Ready for confirmed provider integration",
+      "More options will appear as they become available",
     ],
 
     steps: [
       "Choose the NBAIS service",
       "Check the availability status",
-      "Complete the purchase once a supported provider is connected",
+      "Complete your purchase when the service is available",
     ],
   },
 
@@ -585,7 +585,7 @@ export const services = [
     shortDescription:
       "Choose a supported broadband provider and subscription plan.",
     description:
-      "Subscribe to supported Smile and Spectranet internet plans. Your selected provider determines the account details and plans available to you.",
+      "Subscribe to Smile and Spectranet internet plans. Select your service, enter your account details and choose the plan that suits you.",
     formType: "internet",
 
     providers: [
@@ -605,21 +605,21 @@ export const services = [
       },
     ],
 
-    amounts: ["Dynamic — fetched from provider"],
+    amounts: ["Dynamic — current price"],
     amountLabel: "Internet Plan",
     provider: "vtpass",
 
     features: [
       "Smile broadband subscriptions",
       "Spectranet internet plans",
-      "Provider-specific account details",
-      "Current plans and prices can be loaded dynamically",
+      "Simple account verification",
+      "Choose from available subscription plans",
     ],
 
     steps: [
       "Select Smile or Spectranet",
-      "Enter the provider-specific account or phone number",
-      "Choose the current subscription plan",
+      "Enter your account or phone number",
+      "Choose the available subscription plan",
       "Review and confirm your purchase",
     ],
   },
@@ -634,7 +634,7 @@ export const services = [
     shortDescription:
       "Pay your Nigerian electricity bill using your meter details.",
     description:
-      "Choose your electricity provider, select your meter type and enter your meter number to continue with your bill payment.",
+      "Choose your electricity provider, select your meter type and enter your meter number to make a secure electricity payment.",
     formType: "electricity",
     networks: [],
 
@@ -709,7 +709,7 @@ export const services = [
       "Prepaid and postpaid support",
       "Multiple Nigerian electricity providers",
       "Token delivery where supported",
-      "Transaction and payment record",
+      "Easy-to-follow payment process",
     ],
 
     steps: [
@@ -730,7 +730,7 @@ export const services = [
     shortDescription:
       "Renew supported TV and streaming subscriptions in one place.",
     description:
-      "Choose your TV provider, enter your smartcard or IUC number and select an available subscription package.",
+      "Choose your TV service, enter your smartcard or IUC number and select an available subscription package.",
     formType: "cable",
     networks: [],
 
@@ -754,29 +754,33 @@ export const services = [
     ],
 
     accountLabel: "Smartcard / IUC Number",
-    accountPlaceholder: "Enter your smartcard or IUC number",
+    accountPlaceholder:
+      "Enter your smartcard or IUC number",
 
-    amounts: ["Dynamic — fetched from provider"],
+    amounts: ["Dynamic — current price"],
     amountLabel: "Package / Bouquet",
     provider: "vtpass",
 
     features: [
       "DSTV, GOtv, StarTimes and Showmax",
-      "Current packages can be loaded dynamically",
-      "Provider-confirmed activation",
+      "Choose from available packages",
+      "Convenient subscription renewal",
+      "Secure payment from your TEKSUM wallet",
     ],
 
     steps: [
-      "Select your TV provider",
+      "Select your TV service",
       "Enter your smartcard or IUC number",
-      "Choose the current package",
+      "Choose the available package",
       "Review and confirm your subscription",
     ],
   },
 ];
 
 export function getServiceBySlug(slug) {
-  return services.find((service) => service.slug === slug);
+  return services.find(
+    (service) => service.slug === slug
+  );
 }
 
 export function getServicesByCategory(category) {
