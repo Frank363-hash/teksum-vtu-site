@@ -28,11 +28,148 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background-color: var(--bg);
   color: var(--fg);
   font-family: "Inter", "Segoe UI", Arial, sans-serif;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
   margin: 0;
   padding: 0;
+}
+
+/* =========================================================
+   TEKSUM — Subtle Professional Motion
+   ========================================================= */
+
+.teksum-fade-in {
+  animation: teksum-fade-in 0.55s ease-out both;
+}
+
+.teksum-slide-up {
+  animation: teksum-slide-up 0.6s ease-out both;
+}
+
+.teksum-delay-1 {
+  animation-delay: 0.08s;
+}
+
+.teksum-delay-2 {
+  animation-delay: 0.16s;
+}
+
+.teksum-delay-3 {
+  animation-delay: 0.24s;
+}
+
+.teksum-delay-4 {
+  animation-delay: 0.32s;
+}
+
+.teksum-card-hover {
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.teksum-card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+}
+
+.teksum-image-hover {
+  transition: transform 0.25s ease;
+}
+
+.teksum-image-hover:hover {
+  transform: scale(1.035);
+}
+
+.teksum-interactive {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.teksum-interactive:hover {
+  transform: translateY(-1px);
+}
+
+.teksum-interactive:active {
+  transform: translateY(0);
+}
+
+/* =========================================================
+   Scroll Reveal
+   ========================================================= */
+
+.teksum-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.65s ease-out,
+    transform 0.65s ease-out;
+  will-change: opacity, transform;
+}
+
+.teksum-reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* =========================================================
+   Keyframes
+   ========================================================= */
+
+@keyframes teksum-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes teksum-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   Accessibility
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .teksum-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

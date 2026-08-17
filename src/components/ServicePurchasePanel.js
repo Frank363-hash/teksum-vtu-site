@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import ProviderLogo from "@/components/ProviderLogo";
 import { useAuth } from "@/context/AuthContext";
 
@@ -17,7 +17,8 @@ const DATA_PLAN_PREVIEW = [
 ];
 
 const EDUCATION_DEFAULT_MIN = 1;
-const EDUCATION_DEFAULT_MAX = 10;
+const EDUCATION_DEFAULT_MAX = 19;
+
 const BULK_MIN = 20;
 const BULK_MAX = 100;
 
@@ -86,7 +87,20 @@ function SectionLabel({ eyebrow, title, hint }) {
   );
 }
 
-function NetworkChoice({ network, selected, onClick }) {
+const NETWORK_LOGOS = {
+  MTN: "/networks/mtn-logo-png_seeklogo-95716.png",
+  Airtel: "/networks/airtel-seeklogo.png",
+  Glo: "/networks/glo-limited-logo-png_seeklogo-491131.png",
+  "9mobile": "/networks/9mobile-logo-png_seeklogo-481168.png",
+};
+
+function NetworkChoice({
+  network,
+  selected,
+  onClick,
+}) {
+  const logoSrc = NETWORK_LOGOS[network];
+
   return (
     <button
       type="button"
@@ -95,7 +109,17 @@ function NetworkChoice({ network, selected, onClick }) {
       aria-pressed={selected}
     >
       <div className="flex items-center gap-3">
-        <ProviderLogo name={network} />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white">
+          {logoSrc ? (
+            <img
+              src={logoSrc}
+              alt={`${network} logo`}
+              className="h-9 w-9 object-contain"
+            />
+          ) : (
+            <ProviderLogo name={network} />
+          )}
+        </div>
 
         <div className="min-w-0">
           <p className="text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
@@ -103,7 +127,9 @@ function NetworkChoice({ network, selected, onClick }) {
           </p>
 
           <p className="mt-0.5 text-[11px] text-[#64748b] dark:text-[#94a3b8]">
-            {network === "9mobile" ? "9mobile" : `${network} Nigeria`}
+            {network === "9mobile"
+              ? "9mobile"
+              : `${network} Nigeria`}
           </p>
         </div>
 
@@ -288,7 +314,7 @@ function BulkToggle({ enabled, onChange }) {
           </p>
 
           <p className="mt-1 text-[11px] leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-            Purchase multiple PINs or tokens in one order.
+            Purchase 20 or more PINs or tokens in one order.
           </p>
         </div>
 
@@ -379,47 +405,8 @@ export default function ServicePurchasePanel({
   const [transactionMessage, setTransactionMessage] = useState("");
   const [transactionCode, setTransactionCode] = useState("");
 
-  useEffect(() => {
-    if (auth?.loading || !isAuthenticated) return;
-
-    try {
-      const raw = sessionStorage.getItem("teksum_pending_purchase");
-      if (!raw) return;
-
-      const pending = JSON.parse(raw);
-
-      if (!pending || pending.service !== service.slug) return;
-
-      setNetwork(pending.network || "");
-      setDataType(pending.dataType || "");
-      setSelectedPlan(pending.plan || "");
-      setProvider(pending.provider || "");
-      setOption(pending.option || "");
-      setPhone(pending.phone || "");
-      setAmount(pending.amount || "");
-      setCustomAmount("");
-      setAccount(pending.account || "");
-      setMeterType(pending.meterType || "");
-      setSelectedExamOption(pending.examOption || "");
-      setEducationQuantity(
-        Number(pending.quantity) > 0
-          ? Number(pending.quantity)
-          : 1
-      );
-      setBulkMode(Boolean(pending.bulkMode));
-      setPurchaseStatus("idle");
-      setTransactionReference("");
-      setTransactionMessage("");
-      setTransactionCode("");
-      setShowReview(true);
-    } catch (error) {
-      console.error("Unable to restore pending purchase:", error);
-    }
-  }, [auth?.loading, isAuthenticated, service.slug]);
-
   const availableDataTypes = useMemo(() => {
     if (!network || !service.dataTypesByNetwork) return [];
-
     return service.dataTypesByNetwork[network] || [];
   }, [network, service.dataTypesByNetwork]);
 
@@ -463,12 +450,23 @@ export default function ServicePurchasePanel({
     [service.options, selectedExamOption]
   );
 
+  /*
+   * JAMB uses its own bulkPurchase configuration from services.js
+   * only as the switch that enables bulk ordering.
+   *
+   * Standard education orders support 1–19 units.
+   * Bulk orders support 20–100 units.
+   */
   const isJamb =
     isExam && service.slug === "jamb";
 
+  const isJambBulkEnabled =
+    isJamb &&
+    service.bulkPurchase?.enabled === true;
+
   const isBulkEligible =
-    BULK_ELIGIBLE_SLUGS.includes(service.slug) &&
-    !isJamb;
+    BULK_ELIGIBLE_SLUGS.includes(service.slug) ||
+    isJambBulkEnabled;
 
   const educationMin = bulkMode
     ? BULK_MIN
@@ -494,7 +492,10 @@ export default function ServicePurchasePanel({
 
   function handleBulkChange(enabled) {
     setBulkMode(enabled);
-    setEducationQuantity(enabled ? BULK_MIN : 1);
+
+    setEducationQuantity(
+      enabled ? BULK_MIN : EDUCATION_DEFAULT_MIN
+    );
   }
 
   function handleNetworkChange(value) {
@@ -520,7 +521,8 @@ export default function ServicePurchasePanel({
   }
 
   function handleCustomAmountChange(event) {
-    const value = event.target.value.replace(/\D/g, "");
+    const value =
+      event.target.value.replace(/\D/g, "");
 
     setCustomAmount(value);
     setAmount("");
@@ -530,7 +532,8 @@ export default function ServicePurchasePanel({
     isExam &&
     Boolean(
       selectedExamOption &&
-        selectedExamProduct?.status === "available"
+        selectedExamProduct?.status ===
+          "available"
     );
 
   const canContinue = isAirtime
@@ -549,7 +552,9 @@ export default function ServicePurchasePanel({
       : isExam
         ? examCanContinue
         : isInternet
-          ? Boolean(provider && account)
+          ? Boolean(
+              provider && account
+            )
           : isElectricity
             ? Boolean(
                 provider &&
@@ -558,7 +563,9 @@ export default function ServicePurchasePanel({
                   amount
               )
             : isCable
-              ? Boolean(provider && account)
+              ? Boolean(
+                  provider && account
+                )
               : hasOptions
                 ? Boolean(
                     selectedOption?.status ===
@@ -575,43 +582,6 @@ export default function ServicePurchasePanel({
     ? selectedProvider?.accountPlaceholder ||
       "Enter your details"
     : service.accountPlaceholder;
-
-  function openReview() {
-    if (!canContinue) return;
-
-    setPurchaseStatus("idle");
-    setShowReview(true);
-  }
-
-  function closeReview() {
-    if (purchaseStatus !== "processing") {
-      setShowReview(false);
-    }
-  }
-
-  function editPurchase() {
-    setShowReview(false);
-    setPurchaseStatus("idle");
-
-    setTimeout(() => {
-      let targetId = "airtime-recipient-phone";
-
-      if (isData) {
-        targetId = "data-recipient-phone";
-      }
-
-      if (isExam) {
-        targetId = "education-options";
-      }
-
-      document
-        .getElementById(targetId)
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-    }, 100);
-  }
 
   function buildPurchasePayload() {
     return {
@@ -659,6 +629,65 @@ export default function ServicePurchasePanel({
     };
   }
 
+  function openReview() {
+    if (!canContinue) return;
+
+    if (!isAuthenticated) {
+      try {
+        sessionStorage.setItem(
+          "teksum_pending_purchase",
+          JSON.stringify(
+            buildPurchasePayload()
+          )
+        );
+      } catch {}
+
+      window.location.href =
+        `/login?redirect=${encodeURIComponent(
+          window.location.pathname +
+            window.location.search
+        )}`;
+
+      return;
+    }
+
+    setPurchaseStatus("idle");
+    setShowReview(true);
+  }
+
+  function closeReview() {
+    if (purchaseStatus !== "processing") {
+      setShowReview(false);
+    }
+  }
+
+  function editPurchase() {
+    setShowReview(false);
+    setPurchaseStatus("idle");
+
+    setTimeout(() => {
+      let targetId =
+        "airtime-recipient-phone";
+
+      if (isData) {
+        targetId =
+          "data-recipient-phone";
+      }
+
+      if (isExam) {
+        targetId =
+          "education-options";
+      }
+
+      document
+        .getElementById(targetId)
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+    }, 100);
+  }
+
   async function startPurchase() {
     if (
       !canContinue ||
@@ -671,7 +700,9 @@ export default function ServicePurchasePanel({
       try {
         sessionStorage.setItem(
           "teksum_pending_purchase",
-          JSON.stringify(buildPurchasePayload())
+          JSON.stringify(
+            buildPurchasePayload()
+          )
         );
       } catch {}
 
@@ -695,8 +726,10 @@ export default function ServicePurchasePanel({
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+            Authorization:
+              `Bearer ${accessToken}`,
           },
           body: JSON.stringify(
             buildPurchasePayload()
@@ -714,12 +747,13 @@ export default function ServicePurchasePanel({
 
       const data = result.data || {};
 
-      const backendStatus = String(
-        result.status ||
-          result.transactionStatus ||
-          data.status ||
-          ""
-      ).toLowerCase();
+      const backendStatus =
+        String(
+          result.status ||
+            result.transactionStatus ||
+            data.status ||
+            ""
+        ).toLowerCase();
 
       const reference =
         result.reference ||
@@ -743,8 +777,12 @@ export default function ServicePurchasePanel({
         data.code ||
         "";
 
-      setTransactionReference(reference);
-      setTransactionMessage(message);
+      setTransactionReference(
+        reference
+      );
+      setTransactionMessage(
+        message
+      );
       setTransactionCode(code);
 
       if (
@@ -791,7 +829,9 @@ export default function ServicePurchasePanel({
       );
 
       setTransactionReference("");
-      setTransactionCode("NETWORK_ERROR");
+      setTransactionCode(
+        "NETWORK_ERROR"
+      );
       setTransactionMessage(
         "We couldn't reach the TEKSUM server. Please check your connection and try again."
       );
@@ -843,7 +883,8 @@ export default function ServicePurchasePanel({
         </h2>
 
         <p className="mt-1 text-sm leading-relaxed text-[#475569] dark:text-[#7b8ebc]">
-          Choose your options below and review your purchase before continuing.
+          Choose your options below and review
+          your purchase before continuing.
         </p>
 
         <div className="mt-6 space-y-6">
@@ -856,16 +897,22 @@ export default function ServicePurchasePanel({
               />
 
               <div className="grid grid-cols-2 gap-2.5">
-                {service.networks?.map((item) => (
-                  <NetworkChoice
-                    key={item}
-                    network={item}
-                    selected={network === item}
-                    onClick={() =>
-                      handleNetworkChange(item)
-                    }
-                  />
-                ))}
+                {service.networks?.map(
+                  (item) => (
+                    <NetworkChoice
+                      key={item}
+                      network={item}
+                      selected={
+                        network === item
+                      }
+                      onClick={() =>
+                        handleNetworkChange(
+                          item
+                        )
+                      }
+                    />
+                  )
+                )}
               </div>
             </div>
           )}
@@ -882,7 +929,9 @@ export default function ServicePurchasePanel({
                 <input
                   id="airtime-recipient-phone"
                   value={phone}
-                  onChange={handlePhoneChange}
+                  onChange={
+                    handlePhoneChange
+                  }
                   type="tel"
                   inputMode="numeric"
                   maxLength={11}
@@ -893,7 +942,8 @@ export default function ServicePurchasePanel({
                 {phone.length > 0 &&
                   phone.length !== 11 && (
                     <p className="mt-2 text-xs font-medium text-[#dc2626]">
-                      Enter an 11-digit Nigerian phone number.
+                      Enter an 11-digit Nigerian
+                      phone number.
                     </p>
                   )}
               </div>
@@ -906,35 +956,39 @@ export default function ServicePurchasePanel({
                 />
 
                 <div className="grid grid-cols-3 gap-2">
-                  {service.amounts?.map((item) => {
-                    const active =
-                      amount === item &&
-                      !customAmount;
+                  {service.amounts?.map(
+                    (item) => {
+                      const active =
+                        amount === item &&
+                        !customAmount;
 
-                    return (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => {
-                          setAmount(item);
-                          setCustomAmount("");
-                        }}
-                        className={`cursor-pointer rounded-xl border px-3 py-3 text-sm font-bold transition-all ${
-                          active
-                            ? "border-[#1e40af] bg-[#f0f4ff] text-[#1e40af] shadow-sm dark:border-[#3b60d4] dark:bg-[#101a2d] dark:text-[#3b60d4]"
-                            : "border-[#dbeafe] bg-white text-[#334155] hover:border-[#1e40af] dark:border-[#1e3a6e] dark:bg-[#152040] dark:text-[#cbd5e1]"
-                        }`}
-                      >
-                        {item}
-                      </button>
-                    );
-                  })}
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => {
+                            setAmount(item);
+                            setCustomAmount("");
+                          }}
+                          className={`cursor-pointer rounded-xl border px-3 py-3 text-sm font-bold transition-all ${
+                            active
+                              ? "border-[#1e40af] bg-[#f0f4ff] text-[#1e40af] shadow-sm dark:border-[#3b60d4] dark:bg-[#101a2d] dark:text-[#3b60d4]"
+                              : "border-[#dbeafe] bg-white text-[#334155] hover:border-[#1e40af] dark:border-[#1e3a6e] dark:bg-[#152040] dark:text-[#cbd5e1]"
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      );
+                    }
+                  )}
                 </div>
 
                 <div className="mt-3">
                   <input
                     value={customAmount}
-                    onChange={handleCustomAmountChange}
+                    onChange={
+                      handleCustomAmountChange
+                    }
                     type="text"
                     inputMode="numeric"
                     placeholder="Or enter a custom amount"
@@ -965,21 +1019,30 @@ export default function ServicePurchasePanel({
                     </p>
 
                     <p className="mt-1 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                      Available data types will appear based on the network you choose.
+                      Available data types will appear
+                      based on the network you choose.
                     </p>
                   </div>
-                ) : availableDataTypes.length > 0 ? (
+                ) : availableDataTypes.length >
+                  0 ? (
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                    {availableDataTypes.map((item) => (
-                      <DataTypeCard
-                        key={item.id}
-                        item={item}
-                        selected={dataType === item.id}
-                        onClick={() =>
-                          handleDataTypeChange(item.id)
-                        }
-                      />
-                    ))}
+                    {availableDataTypes.map(
+                      (item) => (
+                        <DataTypeCard
+                          key={item.id}
+                          item={item}
+                          selected={
+                            dataType ===
+                            item.id
+                          }
+                          onClick={() =>
+                            handleDataTypeChange(
+                              item.id
+                            )
+                          }
+                        />
+                      )
+                    )}
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-5 text-center dark:border-[#334155] dark:bg-[#0d1526]">
@@ -1012,22 +1075,30 @@ export default function ServicePurchasePanel({
                   </p>
 
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                    {DATA_PLAN_PREVIEW.map((plan) => (
-                      <DataPlanCard
-                        key={plan.id}
-                        plan={plan}
-                        selected={
-                          selectedPlan === plan.id
-                        }
-                        onClick={() =>
-                          setSelectedPlan(plan.id)
-                        }
-                      />
-                    ))}
+                    {DATA_PLAN_PREVIEW.map(
+                      (plan) => (
+                        <DataPlanCard
+                          key={plan.id}
+                          plan={plan}
+                          selected={
+                            selectedPlan ===
+                            plan.id
+                          }
+                          onClick={() =>
+                            setSelectedPlan(
+                              plan.id
+                            )
+                          }
+                        />
+                      )
+                    )}
                   </div>
 
                   <p className="mt-3 text-[10px] leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                    Preview plans are temporary UI data. Live plans and prices will eventually come from the TEKSUM backend.
+                    Preview plans are temporary UI
+                    data. Live plans and prices will
+                    eventually come from the TEKSUM
+                    backend.
                   </p>
                 </div>
               )}
@@ -1053,7 +1124,8 @@ export default function ServicePurchasePanel({
                 {phone.length > 0 &&
                   phone.length !== 11 && (
                     <p className="mt-2 text-xs font-medium text-[#dc2626]">
-                      Enter an 11-digit Nigerian phone number.
+                      Enter an 11-digit Nigerian phone
+                      number.
                     </p>
                   )}
               </div>
@@ -1077,66 +1149,74 @@ export default function ServicePurchasePanel({
                 />
 
                 <div className="space-y-2.5">
-                  {service.options?.map((item) => {
-                    const disabled =
-                      item.status !== "available";
+                  {service.options?.map(
+                    (item) => {
+                      const disabled =
+                        item.status !==
+                        "available";
 
-                    const selected =
-                      selectedExamOption === item.id;
+                      const selected =
+                        selectedExamOption ===
+                        item.id;
 
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => {
-                          setSelectedExamOption(item.id);
-                          setEducationQuantity(1);
-                          setBulkMode(false);
-                        }}
-                        className={`w-full ${choiceClass(
-                          selected,
-                          disabled
-                        )}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <span
-                            className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-black ${
-                              selected
-                                ? "border-[#1e40af] bg-[#1e40af] text-white dark:border-[#3b60d4] dark:bg-[#3b60d4]"
-                                : "border-[#cbd5e1] text-transparent dark:border-[#475569]"
-                            }`}
-                          >
-                            ✓
-                          </span>
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => {
+                            setSelectedExamOption(
+                              item.id
+                            );
 
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-start justify-between gap-3">
-                              <span className="text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
-                                {item.title}
-                              </span>
+                            setBulkMode(false);
 
-                              <span
-                                className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${
-                                  disabled
-                                    ? "bg-[#f1f5f9] text-[#64748b] dark:bg-[#1e293b] dark:text-[#94a3b8]"
-                                    : "bg-[#dcfce7] text-[#15803d] dark:bg-[#052e16] dark:text-[#4ade80]"
-                                }`}
-                              >
-                                {disabled
-                                  ? "Coming soon"
-                                  : "Available"}
-                              </span>
+                            setEducationQuantity(1);
+                          }}
+                          className={`w-full ${choiceClass(
+                            selected,
+                            disabled
+                          )}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span
+                              className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-black ${
+                                selected
+                                  ? "border-[#1e40af] bg-[#1e40af] text-white dark:border-[#3b60d4] dark:bg-[#3b60d4]"
+                                  : "border-[#cbd5e1] text-transparent dark:border-[#475569]"
+                              }`}
+                            >
+                              ✓
                             </span>
 
-                            <span className="mt-1 block text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                              {item.description}
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-start justify-between gap-3">
+                                <span className="text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
+                                  {item.title}
+                                </span>
+
+                                <span
+                                  className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${
+                                    disabled
+                                      ? "bg-[#f1f5f9] text-[#64748b] dark:bg-[#1e293b] dark:text-[#94a3b8]"
+                                      : "bg-[#dcfce7] text-[#15803d] dark:bg-[#052e16] dark:text-[#4ade80]"
+                                  }`}
+                                >
+                                  {disabled
+                                    ? "Coming soon"
+                                    : "Available"}
+                                </span>
+                              </span>
+
+                              <span className="mt-1 block text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
+                                {item.description}
+                              </span>
                             </span>
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
+                          </div>
+                        </button>
+                      );
+                    }
+                  )}
                 </div>
               </div>
 
@@ -1153,15 +1233,21 @@ export default function ServicePurchasePanel({
                       hint={
                         bulkMode
                           ? "Bulk order"
-                          : "Multiple purchase"
+                          : isJamb
+                            ? "1–19 standard"
+                            : "1–19 standard"
                       }
                     />
 
                     <QuantityControl
-                      value={educationQuantity}
+                      value={
+                        educationQuantity
+                      }
                       min={educationMin}
                       max={educationMax}
-                      onChange={setEducationQuantity}
+                      onChange={
+                        setEducationQuantity
+                      }
                       label={
                         isJamb
                           ? "Candidates"
@@ -1169,22 +1255,38 @@ export default function ServicePurchasePanel({
                       }
                       helper={
                         isJamb
-                          ? "Each candidate will require a separate JAMB PIN/order entry."
-                          : "Purchase more than one PIN or token in the same order."
+                          ? bulkMode
+                            ? "Bulk ordering lets you purchase more than 19 JAMB PINs in one order."
+                            : "You can purchase 1–19 JAMB PINs in a standard order. Use Bulk order for more than 19."
+                          : bulkMode
+                            ? "Bulk ordering is for larger PIN or token quantities."
+                            : "You can purchase 1–19 PINs or tokens in a standard order. Use Bulk order for more than 19."
                       }
                     />
                   </div>
+
+                  {isJambBulkEnabled && !bulkMode && (
+                    <p className="mt-2 text-[10px] leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
+                      Standard JAMB orders support 1–19 candidates. Select Bulk order for 20 or more candidates.
+                    </p>
+                  )}
 
                   {isBulkEligible && (
                     <div>
                       <BulkToggle
                         enabled={bulkMode}
-                        onChange={handleBulkChange}
+                        onChange={
+                          handleBulkChange
+                        }
                       />
 
                       {bulkMode && (
                         <p className="mt-2 text-[10px] leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                          Bulk quantity is currently prepared as 20–100 units. Final limits and bulk pricing will be confirmed by the connected provider.
+                          Bulk quantity is currently
+                          prepared as 20–100 units. Use bulk
+                          order when you need more than 19.
+                          Final limits and bulk pricing will
+                          be confirmed by the connected provider.
                         </p>
                       )}
                     </div>
@@ -1253,54 +1355,66 @@ export default function ServicePurchasePanel({
                 />
 
                 <div className="grid grid-cols-2 gap-2.5">
-                  {service.providers?.map((item) => (
-                    <button
-                      key={item.serviceID}
-                      type="button"
-                      onClick={() => {
-                        setProvider(item.serviceID);
-                        setAccount("");
-                      }}
-                      className={choiceClass(
-                        provider === item.serviceID
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <ProviderLogo
-                          name={item.name}
-                        />
+                  {service.providers?.map(
+                    (item) => (
+                      <button
+                        key={item.serviceID}
+                        type="button"
+                        onClick={() => {
+                          setProvider(
+                            item.serviceID
+                          );
+                          setAccount("");
+                        }}
+                        className={choiceClass(
+                          provider ===
+                            item.serviceID
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <ProviderLogo
+                            name={item.name}
+                          />
 
-                        <div>
-                          <p className="text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
-                            {item.name}
-                          </p>
+                          <div>
+                            <p className="text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
+                              {item.name}
+                            </p>
 
-                          <p className="mt-0.5 text-[11px] text-[#64748b] dark:text-[#94a3b8]">
-                            Internet subscription
-                          </p>
+                            <p className="mt-0.5 text-[11px] text-[#64748b] dark:text-[#94a3b8]">
+                              Internet subscription
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
 
               <div>
                 <SectionLabel
                   eyebrow="Step 2"
-                  title={accountLabel || "Account details"}
+                  title={
+                    accountLabel ||
+                    "Account details"
+                  }
                 />
 
                 <input
                   value={account}
                   onChange={(e) =>
-                    setAccount(e.target.value)
+                    setAccount(
+                      e.target.value
+                    )
                   }
                   type={
                     selectedProvider?.accountType ||
                     "text"
                   }
-                  placeholder={accountPlaceholder}
+                  placeholder={
+                    accountPlaceholder
+                  }
                   className={inputClass}
                 />
               </div>
@@ -1311,7 +1425,8 @@ export default function ServicePurchasePanel({
                 </p>
 
                 <p className="mt-1 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                  Live provider plans will be retrieved during backend integration.
+                  Live provider plans will be retrieved
+                  during backend integration.
                 </p>
               </div>
             </>
@@ -1330,31 +1445,34 @@ export default function ServicePurchasePanel({
                 />
 
                 <div className="grid grid-cols-2 gap-2">
-                  {service.providers?.map((item) => (
-                    <button
-                      key={item.serviceID}
-                      type="button"
-                      onClick={() =>
-                        setProvider(
-                          item.serviceID
-                        )
-                      }
-                      className={choiceClass(
-                        provider === item.serviceID
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <ProviderLogo
-                          name={item.name}
-                          compact
-                        />
+                  {service.providers?.map(
+                    (item) => (
+                      <button
+                        key={item.serviceID}
+                        type="button"
+                        onClick={() =>
+                          setProvider(
+                            item.serviceID
+                          )
+                        }
+                        className={choiceClass(
+                          provider ===
+                            item.serviceID
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <ProviderLogo
+                            name={item.name}
+                            compact
+                          />
 
-                        <span className="text-xs font-bold text-[#334155] dark:text-[#cbd5e1]">
-                          {item.name}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                          <span className="text-xs font-bold text-[#334155] dark:text-[#cbd5e1]">
+                            {item.name}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
 
@@ -1402,7 +1520,9 @@ export default function ServicePurchasePanel({
                 <input
                   value={account}
                   onChange={(e) =>
-                    setAccount(e.target.value)
+                    setAccount(
+                      e.target.value
+                    )
                   }
                   type="text"
                   placeholder={
@@ -1422,7 +1542,9 @@ export default function ServicePurchasePanel({
                   <select
                     value={amount}
                     onChange={(e) =>
-                      setAmount(e.target.value)
+                      setAmount(
+                        e.target.value
+                      )
                     }
                     className={inputClass}
                   >
@@ -1451,7 +1573,8 @@ export default function ServicePurchasePanel({
                   </p>
 
                   <p className="mt-1 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                    Current packages and prices will be retrieved during backend integration.
+                    Current packages and prices will be
+                    retrieved during backend integration.
                   </p>
                 </div>
               )}
@@ -1472,62 +1595,68 @@ export default function ServicePurchasePanel({
                 />
 
                 <div className="space-y-2">
-                  {service.options.map((item) => {
-                    const disabled =
-                      item.status !==
-                      "available";
+                  {service.options.map(
+                    (item) => {
+                      const disabled =
+                        item.status !==
+                        "available";
 
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() =>
-                          setOption(item.id)
-                        }
-                        className={`w-full ${choiceClass(
-                          option === item.id,
-                          disabled
-                        )}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <span
-                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-black ${
-                              option === item.id
-                                ? "border-[#1e40af] bg-[#1e40af] text-white"
-                                : "border-[#cbd5e1] text-transparent dark:border-[#475569]"
-                            }`}
-                          >
-                            ✓
-                          </span>
-
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-start justify-between gap-3">
-                              <span className="text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
-                                {item.title}
-                              </span>
-
-                              <span
-                                className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${
-                                  disabled
-                                    ? "bg-[#f1f5f9] text-[#64748b]"
-                                    : "bg-[#dcfce7] text-[#15803d]"
-                                }`}
-                              >
-                                {disabled
-                                  ? "Coming soon"
-                                  : "Available"}
-                              </span>
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() =>
+                            setOption(
+                              item.id
+                            )
+                          }
+                          className={`w-full ${choiceClass(
+                            option ===
+                              item.id,
+                            disabled
+                          )}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span
+                              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-black ${
+                                option ===
+                                item.id
+                                  ? "border-[#1e40af] bg-[#1e40af] text-white"
+                                  : "border-[#cbd5e1] text-transparent dark:border-[#475569]"
+                              }`}
+                            >
+                              ✓
                             </span>
 
-                            <span className="mt-1 block text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                              {item.description}
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-start justify-between gap-3">
+                                <span className="text-sm font-bold text-[#0f172a] dark:text-[#e8eeff]">
+                                  {item.title}
+                                </span>
+
+                                <span
+                                  className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${
+                                    disabled
+                                      ? "bg-[#f1f5f9] text-[#64748b]"
+                                      : "bg-[#dcfce7] text-[#15803d]"
+                                  }`}
+                                >
+                                  {disabled
+                                    ? "Coming soon"
+                                    : "Available"}
+                                </span>
+                              </span>
+
+                              <span className="mt-1 block text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
+                                {item.description}
+                              </span>
                             </span>
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
+                          </div>
+                        </button>
+                      );
+                    }
+                  )}
                 </div>
               </div>
             )}
@@ -1586,7 +1715,8 @@ export default function ServicePurchasePanel({
                   </h3>
 
                   <p className="mt-1 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                    Please check the details below before continuing.
+                    Please check the details below before
+                    continuing.
                   </p>
                 </div>
 
@@ -1623,7 +1753,9 @@ export default function ServicePurchasePanel({
 
                     <ReviewRow
                       label="Quantity"
-                      value={educationQuantity}
+                      value={
+                        educationQuantity
+                      }
                     />
 
                     <ReviewRow
@@ -1632,7 +1764,7 @@ export default function ServicePurchasePanel({
                         bulkMode
                           ? "Bulk order"
                           : isJamb
-                            ? "Single / Multiple"
+                            ? "Candidate order"
                             : "Standard order"
                       }
                     />
@@ -1757,7 +1889,8 @@ export default function ServicePurchasePanel({
               </div>
 
               <p className="mt-3 text-center text-[10px] leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                Make sure the recipient and service details are correct before continuing.
+                Make sure the recipient and service details
+                are correct before continuing.
               </p>
             </div>
 
@@ -1809,7 +1942,8 @@ export default function ServicePurchasePanel({
             </h3>
 
             <p className="mt-2 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-              Please don't close this window or click the purchase button again.
+              Please don't close this window or click the
+              purchase button again.
             </p>
           </div>
         </div>
@@ -1832,7 +1966,8 @@ export default function ServicePurchasePanel({
               </h3>
 
               <p className="mt-2 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                The TEKSUM backend confirmed this transaction successfully.
+                The TEKSUM backend confirmed this transaction
+                successfully.
               </p>
 
               <div className="mt-5 rounded-2xl bg-[#f8fafc] px-4 py-2 text-left dark:bg-[#0d1526]">
@@ -1853,7 +1988,9 @@ export default function ServicePurchasePanel({
 
                     <ReviewRow
                       label="Quantity"
-                      value={educationQuantity}
+                      value={
+                        educationQuantity
+                      }
                     />
                   </>
                 )}
@@ -1884,7 +2021,9 @@ export default function ServicePurchasePanel({
                 {transactionCode && (
                   <ReviewRow
                     label="Status"
-                    value={transactionCode}
+                    value={
+                      transactionCode
+                    }
                   />
                 )}
               </div>
@@ -1946,7 +2085,9 @@ export default function ServicePurchasePanel({
               </h3>
 
               <p className="mt-2 text-xs leading-relaxed text-[#64748b] dark:text-[#94a3b8]">
-                The backend has not received a final success or failure result yet. Please do not submit the purchase again.
+                The backend has not received a final success or
+                failure result yet. Please do not submit the
+                purchase again.
               </p>
 
               {transactionReference && (
@@ -1961,7 +2102,9 @@ export default function ServicePurchasePanel({
                   {transactionCode && (
                     <ReviewRow
                       label="Status"
-                      value={transactionCode}
+                      value={
+                        transactionCode
+                      }
                     />
                   )}
                 </div>
@@ -2023,7 +2166,9 @@ export default function ServicePurchasePanel({
                   {transactionCode && (
                     <ReviewRow
                       label="Error code"
-                      value={transactionCode}
+                      value={
+                        transactionCode
+                      }
                     />
                   )}
                 </div>
@@ -2045,7 +2190,9 @@ export default function ServicePurchasePanel({
             <div className="flex gap-3 border-t border-[#e2e8f0] px-5 py-4 dark:border-[#1e3a6e]">
               <button
                 type="button"
-                onClick={editFailedPurchase}
+                onClick={
+                  editFailedPurchase
+                }
                 className="flex-1 rounded-xl border border-[#cbd5e1] bg-white px-4 py-3 text-sm font-semibold text-[#334155] dark:border-[#475569] dark:bg-[#152040] dark:text-[#cbd5e1]"
               >
                 Edit

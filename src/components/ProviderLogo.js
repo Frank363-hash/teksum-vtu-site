@@ -3,13 +3,22 @@
 import { useState } from "react";
 
 const LOCAL_LOGOS = {
-  mtn: "/providers/mtn.svg",
-  airtel: "/providers/airtel.svg",
-  glo: "/providers/glo.svg",
-  "9mobile": "/providers/9mobile.svg",
-  etisalat: "/providers/9mobile.svg",
-  smile: "/providers/smile.svg",
-  spectranet: "/providers/spectranet.svg",
+  // Network providers
+  mtn: "/networks/mtn-logo-png_seeklogo-95716.png",
+  airtel: "/networks/airtel-seeklogo.png",
+  glo: "/networks/glo-limited-logo-png_seeklogo-491131.png",
+  "9mobile": "/networks/9mobile-logo-png_seeklogo-481168.png",
+  etisalat: "/networks/9mobile-logo-png_seeklogo-481168.png",
+
+  // Internet providers
+  smile: "/providers/internet/smile.png",
+  spectranet: "/providers/internet/spectranet.png",
+
+  // Cable providers
+  dstv: "/providers/cables/DSTV.png",
+  gotv: "/providers/cables/GOTV.png",
+  startimes: "/providers/cables/Startime.png",
+  showmax: "/providers/cables/showmax.png",
 };
 
 function getProviderKey(name) {
@@ -44,6 +53,31 @@ function getProviderKey(name) {
     return "spectranet";
   }
 
+  if (
+    key.includes("dstv") ||
+    key.includes("multichoice")
+  ) {
+    return "dstv";
+  }
+
+  if (
+    key.includes("gotv") ||
+    key.includes("go tv")
+  ) {
+    return "gotv";
+  }
+
+  if (
+    key.includes("startimes") ||
+    key.includes("star times")
+  ) {
+    return "startimes";
+  }
+
+  if (key.includes("showmax")) {
+    return "showmax";
+  }
+
   return null;
 }
 
@@ -71,39 +105,46 @@ function FallbackLogo({
 
   if (lower.includes("mtn")) {
     label = "MTN";
-    classes =
-      "bg-[#ffcc00] text-[#111827]";
-  } else if (
-    lower.includes("airtel")
-  ) {
+    classes = "bg-[#ffcc00] text-[#111827]";
+  } else if (lower.includes("airtel")) {
     label = "A";
-    classes =
-      "bg-[#e30613] text-white";
-  } else if (
-    lower.includes("glo")
-  ) {
+    classes = "bg-[#e30613] text-white";
+  } else if (lower.includes("glo")) {
     label = "Glo";
-    classes =
-      "bg-[#78b82a] text-white";
+    classes = "bg-[#78b82a] text-white";
   } else if (
     lower.includes("9mobile") ||
     lower.includes("etisalat")
   ) {
     label = "9";
-    classes =
-      "bg-[#006b3f] text-white";
-  } else if (
-    lower.includes("smile")
-  ) {
+    classes = "bg-[#006b3f] text-white";
+  } else if (lower.includes("smile")) {
     label = "smile";
-    classes =
-      "bg-[#f7c948] text-[#24324a]";
-  } else if (
-    lower.includes("spectranet")
-  ) {
+    classes = "bg-[#f7c948] text-[#24324a]";
+  } else if (lower.includes("spectranet")) {
     label = "S";
-    classes =
-      "bg-[#1d4ed8] text-white";
+    classes = "bg-[#1d4ed8] text-white";
+  } else if (
+    lower.includes("dstv") ||
+    lower.includes("multichoice")
+  ) {
+    label = "DStv";
+    classes = "bg-[#0b3b8f] text-white";
+  } else if (
+    lower.includes("gotv") ||
+    lower.includes("go tv")
+  ) {
+    label = "GOtv";
+    classes = "bg-[#111827] text-white";
+  } else if (
+    lower.includes("startimes") ||
+    lower.includes("star times")
+  ) {
+    label = "StarTimes";
+    classes = "bg-[#e11d48] text-white";
+  } else if (lower.includes("showmax")) {
+    label = "Showmax";
+    classes = "bg-[#111827] text-white";
   }
 
   return (
@@ -120,25 +161,15 @@ export default function ProviderLogo({
   name,
   compact = false,
 }) {
-  const [
-    imageFailed,
-    setImageFailed,
-  ] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
-  const providerKey =
-    getProviderKey(name);
+  const providerKey = getProviderKey(name);
 
-  const logoPath =
-    providerKey
-      ? LOCAL_LOGOS[
-          providerKey
-        ]
-      : null;
+  const logoPath = providerKey
+    ? LOCAL_LOGOS[providerKey]
+    : null;
 
-  if (
-    !logoPath ||
-    imageFailed
-  ) {
+  if (!logoPath || imageFailed) {
     return (
       <FallbackLogo
         name={name}
@@ -158,10 +189,8 @@ export default function ProviderLogo({
       <img
         src={logoPath}
         alt={`${name} logo`}
-        className="h-full w-full object-contain"
-        onError={() =>
-          setImageFailed(true)
-        }
+        className="h-full w-full object-contain p-1"
+        onError={() => setImageFailed(true)}
       />
     </span>
   );
