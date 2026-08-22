@@ -150,6 +150,101 @@ export const services = [
     ],
   },
 
+    // ── INTERNATIONAL AIRTIME ───────────────────────────────────────────────
+   {
+    slug: "international-airtime",
+    title: "International Airtime",
+    icon: "🌍",
+    logo: "/services/international-airtime.png",
+    category: "airtime",
+    shortDescription:
+      "Send airtime to supported mobile numbers outside Nigeria.",
+    description:
+      "Purchase airtime for supported international destinations. Select the destination country, product type, operator and denomination, then enter the recipient details before reviewing your order.",
+    formType: "international-airtime",
+
+    provider: "vtpass",
+    serviceID: "foreign-airtime",
+
+    international: true,
+
+    /*
+     * International airtime inventory must come from the backend/provider.
+     * Do not hard-code countries, operators, denominations or prices here.
+     */
+    dynamicInventory: true,
+
+    fields: {
+      country: {
+        required: true,
+        label: "Destination country",
+        placeholder: "Select a country",
+      },
+
+      productType: {
+        required: true,
+        label: "Product type",
+        placeholder: "Select a product type",
+      },
+
+      operator: {
+        required: true,
+        label: "Mobile operator",
+        placeholder: "Select an operator",
+      },
+
+      variation: {
+        required: true,
+        label: "Airtime denomination",
+        placeholder: "Select an amount",
+      },
+
+      phone: {
+        required: true,
+        label: "Recipient phone number",
+        placeholder: "Enter international phone number",
+      },
+
+      email: {
+        required: true,
+        label: "Email address",
+        placeholder: "Enter your email address",
+      },
+    },
+
+    /*
+     * Provider-specific purchase fields expected by the backend.
+     * The frontend should collect these values but must not invent them.
+     */
+    purchaseFields: [
+      "billersCode",
+      "variation_code",
+      "operator_id",
+      "country_code",
+      "product_type_id",
+      "phone",
+      "email",
+    ],
+
+    features: [
+      "Send airtime to supported international destinations",
+      "Choose from available operators and denominations",
+      "Clear pricing before confirmation",
+      "Secure payment from your TEKSUM wallet",
+    ],
+
+    steps: [
+      "Select the destination country",
+      "Choose the product type",
+      "Select the mobile operator",
+      "Choose the available airtime denomination",
+      "Enter the recipient phone number and email",
+      "Review the transaction and confirm",
+    ],
+  },
+
+
+
   // ── JAMB ─────────────────────────────────────────────────────────────────
   {
     slug: "jamb",
@@ -247,6 +342,16 @@ export const services = [
     provider: "vtpass",
     serviceID: "waec",
 
+    bulkPurchase: {
+  enabled: true,
+  min: 2,
+  max: 10,
+  label: "Number of PINs",
+  quantityLabel: "PINs",
+  helper:
+    "Purchase multiple WAEC result-checking PINs in one order.",
+},
+
     options: [
       {
         id: "result-checker",
@@ -340,6 +445,8 @@ export const services = [
     provider: "vtuafrica",
     serviceID: "waec",
 
+
+
     options: [
       {
         id: "verification-pin",
@@ -382,6 +489,16 @@ export const services = [
     formType: "exam",
     provider: "vtuafrica",
     serviceID: "neco",
+
+    bulkPurchase: {
+  enabled: true,
+  min: 2,
+  max: 10,
+  label: "Number of tokens",
+  quantityLabel: "Tokens",
+  helper:
+    "Purchase multiple NECO result-checking tokens in one order.",
+},
 
     options: [
       {

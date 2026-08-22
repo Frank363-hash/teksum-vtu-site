@@ -19,7 +19,7 @@ export default function ContactPage() {
               Get in touch
             </p>
             <h1 className="mt-2 text-3xl font-extrabold text-[#0f172a] sm:text-4xl dark:text-[#e8eeff]">
-              We're here to help
+              We are here to help
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-base text-[#475569] dark:text-[#7b8ebc]">
               Have a question or issue? Reach out to us and we'll get back to you as quickly as possible.
@@ -94,7 +94,7 @@ export default function ContactPage() {
                 {
                   icon: "💬",
                   title: "WhatsApp",
-                  value: "+234 800 000 0000",
+                  value: "09129379302",
                   note: "Mon – Sat, 8am – 10pm",
                 },
                 {
